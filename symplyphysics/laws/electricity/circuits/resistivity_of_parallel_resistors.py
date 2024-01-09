@@ -7,7 +7,7 @@ from symplyphysics import (
     validate_input,
     validate_output,
 )
-from symplyphysics.core.operations.sum_array import InvSumArray
+from symplyphysics.core.operations.inv_sum_array import InvSumArray
 from symplyphysics.core.symbols.symbols import tuple_of_symbols
 
 # Description
