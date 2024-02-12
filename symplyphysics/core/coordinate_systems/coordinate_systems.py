@@ -50,11 +50,9 @@ class CoordinateSystem:
             case _:
                 raise CoordinateSystem.NotSupported(coord_system_type)
 
-    def __init__(
-            self,
-            coord_system_type: System = System.CARTESIAN,
-            inner: Optional[CoordSys3D] = None,
-        ):
+    def __init__(self,
+        coord_system_type: System = System.CARTESIAN,
+        inner: Optional[CoordSys3D] = None) -> None:
         self._coord_system_type = coord_system_type
         self._coord_system = inner or CoordSys3D(
             next_name("SYS"),
@@ -69,47 +67,42 @@ class CoordinateSystem:
     def coord_system_type(self) -> System:
         return self._coord_system_type
 
-    def transformation_to_system(self, coord_system_type: System):
-        # pylint: disable=R0911
+    def transformation_to_system(self, coord_system_type: System) -> tuple[Expr, Expr, Expr]:
+        if self._coord_system_type == self.System.CYLINDRICAL:
+            r, theta, z = self._coord_system.base_scalars()
+            cylindrical_conversions = {
+                self.System.CARTESIAN: (r * cos(theta), r * sin(theta), z),
+                self.System.CYLINDRICAL: (r, theta, z)
+            }
+            transformation = cylindrical_conversions.get(coord_system_type)
+            if transformation is not None:
+                return transformation
 
-        match self._coord_system_type:
-            case self.System.CARTESIAN:
-                x, y, z = self._coord_system.base_scalars()
-                match coord_system_type:
-                    case CoordinateSystem.System.CARTESIAN:
-                        return x, y, z
-                    case CoordinateSystem.System.CYLINDRICAL:
-                        return sqrt(x**2 + y**2), atan2(y, x), z
-                    case CoordinateSystem.System.SPHERICAL:
-                        r = sqrt(x**2 + y**2 + z**2)
-                        return r, atan2(y, x), acos(z / r)
+        if self._coord_system_type == self.System.SPHERICAL:
+            r, theta, phi = self._coord_system.base_scalars()
+            spherical_conversions = {
+                self.System.CARTESIAN:
+                (r * cos(theta) * sin(phi), r * sin(theta) * sin(phi), r * cos(phi)),
+                self.System.SPHERICAL: (r, theta, phi)
+            }
+            transformation = spherical_conversions.get(coord_system_type)
+            if transformation is not None:
+                return transformation
 
-            case CoordinateSystem.System.CYLINDRICAL:
-                r, theta, z = self._coord_system.base_scalars()
-                match coord_system_type:
-                    case CoordinateSystem.System.CARTESIAN:
-                        return r * cos(theta), r * sin(theta), z
-                    case CoordinateSystem.System.CYLINDRICAL:
-                        return r, theta, z
-                    case CoordinateSystem.System.SPHERICAL:
-                        return sqrt(r**2 + z**2), theta, atan2(r / z)
+        if self._coord_system_type == self.System.CARTESIAN:
+            x, y, z = self._coord_system.base_scalars()
+            cartesian_conversions = {
+                self.System.CYLINDRICAL: (sqrt(x**2 + y**2), atan2(y, x), z),
+                self.System.SPHERICAL: (sqrt(x**2 + y**2 + z**2), atan2(y,
+                x), acos(z / sqrt(x**2 + y**2 + z**2))),
+                self.System.CARTESIAN: (x, y, z)
+            }
+            transformation = cartesian_conversions.get(coord_system_type)
+            if transformation is not None:
+                return transformation
 
-            case CoordinateSystem.System.SPHERICAL:
-                r, theta, phi = self._coord_system.base_scalars()
-                match coord_system_type:
-                    case CoordinateSystem.System.CARTESIAN:
-                        return (
-                            r * cos(theta) * sin(phi),
-                            r * sin(theta) * sin(phi),
-                            r * cos(phi),
-                        )
-                    case CoordinateSystem.System.CYLINDRICAL:
-                        pass
-                    case CoordinateSystem.System.SPHERICAL:
-                        return r, theta, phi
-
-        coord_name_from = CoordinateSystem.System.get_name(self._coord_system_type)
-        coord_name_to = CoordinateSystem.System.get_name(coord_system_type)
+        coord_name_from = self.system_to_transformation_name(self._coord_system_type)
+        coord_name_to = self.system_to_transformation_name(coord_system_type)
         raise ValueError(
             f"Transformation is not supported: from {coord_name_from} to {coord_name_to}"
         )
