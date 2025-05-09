@@ -19,11 +19,11 @@ jobs:
       - name: Install symplyphysics
         run: pip install .[dev,plots]
 
-      - name: Run typechecking with mypy
-        run: mypy .
-
       - name: Run linter with pylint
         run: pylint ./test/**/*.py ./symplyphysics ./examples ./plots ./docs
+
+      - name: Run typechecking with mypy
+        run: mypy .
 
       - name: Run tests with pytest
         run: pytest
