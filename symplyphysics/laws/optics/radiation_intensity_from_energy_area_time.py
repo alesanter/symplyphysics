@@ -1,34 +1,44 @@
-from sympy import (Eq, solve)
-from symplyphysics import (
-    units,
-    Quantity,
-    Symbol,
-    print_expression,
-    validate_input,
-    validate_output,
-)
+"""
+Radiation intensity from energy, area, and time
+===============================================
 
-# Description
-## Intensity is a scalar physical quantity that quantitatively characterizes the power carried by
-## a wave in the direction of propagation
+Intensity is a scalar physical quantity that quantitatively characterizes the power carried by
+a wave in the direction of propagation per unit area per unit time.
 
-## Law: I = E / (S * t), where
-## I - intensity of incident radiation,
-## E - energy of incident radiation,
-## S - area,
-## t - time.
+**Links:**
 
-intensity = Symbol("intensity", units.power / units.area)
+#. `Wikipedia, derivable from here <https://en.wikipedia.org/wiki/Intensity_(physics)#Mathematical_description>`__.
+"""
 
-energy = Symbol("energy", units.energy)
-area = Symbol("area", units.area)
-time = Symbol("time", units.time)
+from sympy import Eq, solve
+from symplyphysics import Quantity, validate_input, validate_output, symbols
+
+intensity = symbols.intensity
+"""
+(Average) :symbols:`intensity` of incident radiation.
+"""
+
+energy = symbols.energy
+"""
+:symbols:`energy` of incident radiation.
+"""
+
+area = symbols.area
+"""
+:symbols:`area`.
+"""
+
+time = symbols.time
+"""
+:symbols:`time`.
+"""
 
 law = Eq(intensity, energy / (area * time))
+"""
+:laws:symbol::
 
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(

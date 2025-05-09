@@ -1,56 +1,84 @@
-from sympy import (Eq, solve, exp)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output)
+r"""
+Pressure of ideal gas from height and temperature
+=================================================
 
-# Description
-## The barometric formula determines the dependence of the pressure or density of a gas on the height in the gravity field.
+The *barometric formula* determines the dependence of the pressure or density of a gas on the height in the gravity field.
 
-## Law: p = p_0 * exp((-g * m * (h - h_0)) / (R * T))
-## Where:
-## p is the gas pressure in the layer located at height h
-## p_0 is the gas pressure at the initial height
-## g is acceleration of free fall
-## m is atomic weight of the gas
-## h is final height
-## h_0 is initial height
-## R is ideal gas constant
-## T is temperature
+**Notation:**
 
-## Conditions
-## Gas is ideal
-## The gas is in a uniform gravity field
+#. :quantity_notation:`acceleration_due_to_gravity`.
+#. :quantity_notation:`boltzmann_constant`.
 
-final_pressure = Symbol("final_pressure", units.pressure)
-initial_pressure = Symbol("initial_pressure", units.pressure)
-atomic_weight = Symbol("atomic_weight", units.mass / units.amount_of_substance)
-final_height = Symbol("final_height", units.length)
-initial_height = Symbol("initial_height", units.length)
-temperature = Symbol("temperature", units.temperature)
+**Conditions:**
+
+#. The gas is ideal.
+#. The gas is in a uniform gravity field.
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Barometric_formula#Derivation>`__.
+"""
+
+from sympy import Eq, solve, exp
+from symplyphysics import (
+    symbols,
+    Quantity,
+    validate_input,
+    validate_output,
+    quantities,
+    clone_as_symbol,
+)
+from symplyphysics.core.operations.symbolic import FiniteDifference
+
+final_pressure = symbols.pressure
+"""
+:symbols:`pressure` of the gas at final height.
+"""
+
+initial_pressure = clone_as_symbol(symbols.pressure, subscript="0")
+"""
+:symbols:`pressure` of the gas at initial height.
+"""
+
+molecular_mass = symbols.mass
+"""
+:symbols:`mass` of a single gas molecule.
+"""
+
+height_change = FiniteDifference(symbols.height)
+"""
+Change in :symbols:`height` between :attr:`~initial_pressure` and :attr:`~final_pressure`.
+"""
+
+temperature = symbols.temperature
+"""
+:symbols:`temperature` of the gas.
+"""
 
 law = Eq(
     final_pressure,
-    initial_pressure * exp(-units.acceleration_due_to_gravity * atomic_weight *
-    (final_height - initial_height) / (units.molar_gas_constant * temperature)))
+    initial_pressure *
+    exp(-quantities.acceleration_due_to_gravity * molecular_mass * height_change /
+    (quantities.boltzmann_constant * temperature)))
+"""
+:laws:symbol::
 
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(initial_pressure_=initial_pressure,
-    atomic_weight_=atomic_weight,
-    final_height_=final_height,
-    initial_height_=initial_height,
+    molecular_mass_=molecular_mass,
+    height_change_=height_change,
     temperature_=temperature)
 @validate_output(final_pressure)
-def calculate_final_pressure(initial_pressure_: Quantity, atomic_weight_: Quantity,
-    initial_height_: Quantity, final_height_: Quantity, temperature_: Quantity) -> Quantity:
+def calculate_final_pressure(initial_pressure_: Quantity, molecular_mass_: Quantity,
+    height_change_: Quantity, temperature_: Quantity) -> Quantity:
     result_expr = solve(law, final_pressure, dict=True)[0][final_pressure]
     result_final_pressure = result_expr.subs({
         initial_pressure: initial_pressure_,
-        atomic_weight: atomic_weight_,
-        final_height: final_height_,
-        initial_height: initial_height_,
+        molecular_mass: molecular_mass_,
+        height_change: height_change_,
         temperature: temperature_
     })
     return Quantity(result_final_pressure)

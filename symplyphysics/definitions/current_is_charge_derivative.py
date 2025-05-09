@@ -1,26 +1,45 @@
-from sympy import (Eq, Derivative)
-from symplyphysics import (units, Quantity, Function, Symbol, print_expression, validate_input,
-    validate_output)
+"""
+Current is charge derivative
+============================
 
-# Description
-## The instantaneous electrical current, or simply the electrical current, is the time derivative of the charge that flows.
+The instantaneous electric current, or simply the *electric current*, is a physical quantity
+defined as the time derivative of the flowing charge.
 
-# Definition: I = dQ/dt
-# Where:
-## I is current through the conductor
-## Q is the electrical charge transferred
+**Links:**
 
-time = Symbol("time", units.time)
-current = Function("current", units.current)
-charge = Function("charge", units.charge)
+#. `Wikipedia, second equation <https://en.wikipedia.org/wiki/Electric_current#Metals>`__.
+"""
+
+from sympy import Eq, Derivative
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    symbols,
+    clone_as_function,
+)
+
+time = symbols.time
+"""
+:symbols:`time`.
+"""
+
+current = clone_as_function(symbols.current, [time])
+"""
+Electric :symbols:`current` as a function of time.
+"""
+
+charge = clone_as_function(symbols.charge, [time])
+"""
+Electric :symbols:`charge` as a function of time.
+"""
 
 definition = Eq(current(time), Derivative(charge(time), time))
+"""
+:laws:symbol::
 
-definition_units_SI = units.ampere
-
-
-def print_law() -> str:
-    return print_expression(definition)
+:laws:latex::
+"""
 
 
 @validate_input(charge_start_=charge, charge_end_=charge, time_=time)

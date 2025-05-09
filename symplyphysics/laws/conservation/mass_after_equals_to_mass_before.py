@@ -1,48 +1,72 @@
-from sympy import (Eq, solve, dsolve)
-from symplyphysics import (units, Quantity, Symbol, print_expression, Function, validate_input,
-    validate_output)
+"""
+Initial mass equals final mass
+==============================
+
+The total mass of a closed system is conserved. For more information, see
+:ref:`Mass is constant`.
+
+**Conditions:**
+
+#. The system is isolated, i.e. no particles can leave it.
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Conservation_of_mass>`__.
+"""
+
+from sympy import Eq, solve, dsolve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    clone_as_function,
+    clone_as_symbol,
+    symbols,
+)
 from symplyphysics.core.expr_comparisons import expr_equals
 from symplyphysics.laws.conservation import mass_is_constant
 
-# Description
-## The total mass of the closed system is preserved.
-## For more information, see [mass_is_constant](./mass_is_constant.py).
+initial_time = clone_as_symbol(symbols.time, subscript="0")
+"""
+Initial :symbols:`time`.
+"""
 
-# Law: m(t1) = m(t0)
-## Where:
-## m - summary mass of a system,
-## t1 - the moment of time after the action in the system,
-## t0 - initial time.
+final_time = clone_as_symbol(symbols.time, subscript="1")
+"""
+Final :symbols:`time`.
+"""
 
-time_before = Symbol("time_before", units.time)
-time_after = Symbol("time_after", units.time)
-mass = Function("mass", units.mass)
+mass = clone_as_function(symbols.mass, [symbols.time])
+"""
+:symbols:`mass` as a function of :symbols:`time`.
+"""
 
-law = Eq(mass(time_after), mass(time_before))
+law = Eq(mass(final_time), mass(initial_time))
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 # Derive the same law from constant mass
 
 ## dsolve() shows that solution is constant C1
-dsolved = dsolve(mass_is_constant.law, mass_is_constant.mass(mass_is_constant.time))
+_dsolved = dsolve(mass_is_constant.law, mass_is_constant.mass(mass_is_constant.time))
 
-mass_before_eq = dsolved.subs(mass_is_constant.time, time_before)
-mass_before_eq = mass_before_eq.subs(mass_is_constant.mass(time_before), mass(time_before))
-mass_after_eq = dsolved.subs(mass_is_constant.time, time_after)
-mass_after_eq = mass_after_eq.subs(mass_is_constant.mass(time_after), mass(time_after))
+_mass_before_eq = _dsolved.subs(mass_is_constant.time, initial_time)
+_mass_before_eq = _mass_before_eq.subs(mass_is_constant.mass(initial_time), mass(initial_time))
+_mass_after_eq = _dsolved.subs(mass_is_constant.time, final_time)
+_mass_after_eq = _mass_after_eq.subs(mass_is_constant.mass(final_time), mass(final_time))
 
 ## Show that when mass is constant, mass_before equals to mass_after
-mass_after_solved = solve([mass_after_eq, mass_before_eq], (mass(time_after), "C1"),
-    dict=True)[0][mass(time_after)]
-assert expr_equals(mass_after_solved, law.rhs)
-
-
-def print_law() -> str:
-    return print_expression(law)
+_mass_after_solved = solve([_mass_after_eq, _mass_before_eq], (mass(final_time), "C1"),
+    dict=True)[0][mass(final_time)]
+assert expr_equals(_mass_after_solved, law.rhs)
 
 
 @validate_input(mass_before_=mass)
 @validate_output(mass)
 def calculate_mass_after(mass_before_: Quantity) -> Quantity:
-    solved = solve(law, mass(time_after), dict=True)[0][mass(time_after)]
-    result_expr = solved.subs(mass(time_before), mass_before_)
+    solved = solve(law, mass(final_time), dict=True)[0][mass(final_time)]
+    result_expr = solved.subs(mass(initial_time), mass_before_)
     return Quantity(result_expr)

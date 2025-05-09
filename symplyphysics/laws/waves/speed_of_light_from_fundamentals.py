@@ -1,21 +1,33 @@
+r"""
+Speed of light via vacuum permittivity and permeability
+=======================================================
+
+Speed of light can be expressed using the permittivity and permeability
+of the vacuum.
+
+**Notation:**
+
+#. :quantity_notation:`speed_of_light`.
+#. :quantity_notation:`vacuum_permittivity`.
+#. :quantity_notation:`vacuum_permeability`.
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Speed_of_light#Propagation_of_light>`__.
+"""
+
 from sympy import (Eq, sqrt)
-from sympy.physics.units import speed_of_light, magnetic_constant, electric_constant
-from symplyphysics import units, print_expression, convert_to
+from symplyphysics import units, convert_to, quantities
 
-# Description
-## Speed of light in vacuum is fundamental but still might be calculated from other fundamentals.
+law = Eq(quantities.speed_of_light,
+    1 / sqrt(quantities.vacuum_permittivity * quantities.vacuum_permeability))
+r"""
+:code:`c = 1 / sqrt(epsilon_0 * mu_0)`
 
-# Law: c = 1/sqrt(e0 * u0), where
-## C is speed of light in vacuum,
-## e0 is electric constant or vacuum permittivity,
-## u0 is magnetic constant or vacuum permeability.
-
-law = Eq(speed_of_light, 1 / sqrt(magnetic_constant * electric_constant))
-
-
-def print_law() -> str:
-    return print_expression(law)
-
+Latex:
+    .. math::
+        c = \frac{1}{\sqrt{\varepsilon_0 \mu_0}}
+"""
 
 assert convert_to(law.lhs, units.meter / units.second) == convert_to(law.rhs,
     units.meter / units.second)

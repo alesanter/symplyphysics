@@ -1,28 +1,45 @@
-from sympy import (Eq, Derivative)
-from symplyphysics import (units, Quantity, Function, Symbol, print_expression, validate_input,
-    validate_output)
+"""
+Mass flow rate
+==============
 
-# Description
-## The rate of change in the mass of matter. For example, the outflow of a substance
-## from a certain volume, the flow in a pipe section, the combustion of fuel.
+Mass flow rate is the rate of change in the mass of an object. Examples include the outflow of a substance
+from a certain volume, the flow in a pipe section, the combustion of fuel.
 
-# Definition: mu = dm / dt
-# Where:
-## mu is mass flow rate
-## m is mass of matter (function m(t))
-## t is time
+**Links:**
 
-time = Symbol("time", units.time)
-mass = Function("mass", units.mass)
-mass_flow_rate = Function("mass_flow_rate", units.mass / units.time)
+#. `Wikipedia <https://en.wikipedia.org/wiki/Mass_flow_rate#Formulation>`__.
+"""
+
+from sympy import Eq, Derivative
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    symbols,
+    clone_as_function,
+)
+
+time = symbols.time
+"""
+:symbols:`time`.
+"""
+
+mass_flow_rate = clone_as_function(symbols.mass_flow_rate, [time])
+"""
+:symbols:`mass_flow_rate` as a function of time.
+"""
+
+mass = clone_as_function(symbols.mass, [time])
+"""
+:symbols:`mass` as a function of time.
+"""
 
 definition = Eq(mass_flow_rate(time), Derivative(mass(time), time))
+"""
+:laws:symbol::
 
-definition_units_SI = units.kilogram / units.second
-
-
-def print_law() -> str:
-    return print_expression(definition)
+:laws:latex::
+"""
 
 
 @validate_input(mass_start_=mass, mass_end_=mass, time_=time)

@@ -1,37 +1,56 @@
+"""
+Lennard-Jones potential
+=======================
+
+The Lennard-Jones (LJ) potential is an intermolecular pair potential. It models soft repulsive and
+attractive (van der Waals) interactions, and it describes electronically neutral atoms or molecules.
+It is a simple yet realistic model to describe intermolecular interactions: two particles repel each
+other at a very close distance, attract each other at moderate distance, and do not interact at infinite
+distance.
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Lennard-Jones_potential#Overview>`__.
+"""
+
 from sympy import Eq
 from symplyphysics import (
-    units,
     Quantity,
-    Symbol,
-    print_expression,
     validate_input,
     validate_output,
+    symbols,
+    clone_as_symbol,
 )
 
-# Description
-## The Lennard-Jones (LJ) potential is an intermolecular pair potential. It models soft repulsive and
-## attractive (van der Waals) interactions, and it describes electronically neutral atoms or molecules.
-## It is a simple yet realistic model to describe intermolecular interactions: two particles repel each
-## other at a very close distance, attract each other at moderate distance, and do not interact at infinite
-## distance.
+potential = symbols.potential_energy
+"""
+:symbols:`potential_energy` of the configuration.
+"""
 
-# Law: U = 4*e*((sigma/r)**12 - (sigma/r)**6)
-## U - Lennard-Jones potential
-## e - depth of potential well ("dispersion energy")
-## sigma - distance at which the potential energy is zero ("particle size")
-## r - distance between interacting particles
+dispersion_energy = clone_as_symbol(symbols.energy,
+    display_symbol="e",
+    display_latex="\\varepsilon")
+"""
+Depth of the potential well, also referred to as *dispersion energy*. See :symbols:`energy`.
+"""
 
-potential = Symbol("potential", units.energy)
-dispersion_energy = Symbol("dispersion_energy", units.energy)
-particle_size = Symbol("particle_size", units.length)
-distance = Symbol("distance", units.length)
+particle_size = clone_as_symbol(symbols.radius, display_symbol="sigma", display_latex="\\sigma")
+"""
+Distance (see :symbols:`radius`) at which potential is zero, also referred to as *particle size*.
+"""
+
+distance = clone_as_symbol(symbols.euclidean_distance, display_symbol="r", display_latex="r")
+"""
+:symbols:`euclidean_distance` between the centers of the particles.
+"""
 
 law = Eq(potential,
     4 * dispersion_energy * ((particle_size / distance)**12 - (particle_size / distance)**6))
+"""
+:laws:symbol::
 
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(

@@ -2,21 +2,21 @@ from sympy import solve
 from symplyphysics import (
     units,
     Quantity,
-    Symbol,
-    Function,
     QuantityVector,
     Vector,
     scale_vector,
     validate_input,
     validate_output,
-    list_of_quantities,
+    symbols,
+    clone_as_function,
+    clone_as_symbol,
 )
 from symplyphysics.core.expr_comparisons import expr_equals
 from symplyphysics.definitions import (
-    momentum_is_mass_times_velocity as momentum_def,
-    acceleration_is_velocity_derivative as acceleration_def,
+    acceleration_is_speed_derivative as _acceleration_def,
+    momentum_is_mass_times_speed as _momentum_def,
 )
-from symplyphysics.laws.dynamics.vector import force_is_derivative_of_momentum as force_momentum_law
+from symplyphysics.laws.dynamics.vector import force_is_derivative_of_momentum as _force_momentum_law
 
 # Description
 ## Newton's second law in vector form: a = 1/m * F
@@ -26,7 +26,7 @@ from symplyphysics.laws.dynamics.vector import force_is_derivative_of_momentum a
 ## a - acceleration vector,
 ## * - scalar multiplication (scale vector).
 
-mass = Symbol("mass", units.mass)
+mass = clone_as_symbol(symbols.mass, positive=True)
 
 
 def acceleration_law(force_: Vector) -> Vector:
@@ -40,46 +40,44 @@ def force_law(acceleration_: Vector) -> Vector:
 # Derive this law from law of force and momentum
 # Condition: mass is constant
 
-time = force_momentum_law.time
+time = _force_momentum_law.time
 
-momentum_x = Function("momentum_x", units.momentum)
-momentum_y = Function("momentum_y", units.momentum)
-momentum_z = Function("momentum_z", units.momentum)
-momentum_vec = Vector([momentum_x(time), momentum_y(time), momentum_z(time)])
+_momentum_x = clone_as_function(symbols.momentum, [time], subscript="x")
+_momentum_y = clone_as_function(symbols.momentum, [time], subscript="y")
+_momentum_z = clone_as_function(symbols.momentum, [time], subscript="z")
+_momentum_vec = Vector([_momentum_x(time), _momentum_y(time), _momentum_z(time)])
 
-force_derived = force_momentum_law.force_law(momentum_vec)
+_force_derived = _force_momentum_law.force_law(_momentum_vec)
 
-momentum_def_sub = momentum_def.definition.subs(momentum_def.mass, mass)
-velocity_from_momentum = solve(momentum_def_sub, momentum_def.velocity)[0]
-velocity_vec = Vector([
-    velocity_from_momentum.subs(momentum_def.momentum, momentum_component)
-    for momentum_component in momentum_vec.components
+_momentum_def_sub = _momentum_def.definition.subs(_momentum_def.mass, mass)
+_velocity_from_momentum = solve(_momentum_def_sub, _momentum_def.speed)[0]
+_velocity_vec = Vector([
+    _velocity_from_momentum.subs(_momentum_def.momentum, momentum_component)
+    for momentum_component in _momentum_vec.components
 ])
 
-acceleration_def_sub = acceleration_def.definition.rhs.subs(acceleration_def.time, time)
-acceleration_vec = Vector([
-    acceleration_def_sub.subs(acceleration_def.velocity(time), velocity_component)
-    for velocity_component in velocity_vec.components
+_acceleration_def_sub = _acceleration_def.definition.rhs.subs(_acceleration_def.time, time)
+_acceleration_vec = Vector([
+    _acceleration_def_sub.subs(_acceleration_def.speed(time), velocity_component)
+    for velocity_component in _velocity_vec.components
 ])
 
-force_from_law = force_law(acceleration_vec)
+_force_from_law = force_law(_acceleration_vec)
 
-for component_derived, component_from_law in zip(force_derived.components,
-    force_from_law.components):
-    assert expr_equals(component_derived, component_from_law)
+for _component_derived, _component_from_law in zip(_force_derived.components,
+    _force_from_law.components):
+    assert expr_equals(_component_derived, _component_from_law)
 
 
 @validate_input(mass_=mass, acceleration_=units.acceleration)
 @validate_output(units.force)
 def calculate_force(mass_: Quantity, acceleration_: QuantityVector) -> QuantityVector:
-    result_force = force_law(acceleration_)
-    force_components = list_of_quantities(result_force.components, {mass: mass_})
-    return QuantityVector(force_components, acceleration_.coordinate_system)
+    result_vector = force_law(acceleration_.to_base_vector())
+    return QuantityVector.from_base_vector(result_vector, subs={mass: mass_})
 
 
 @validate_input(mass_=mass, force_=units.force)
 @validate_output(units.acceleration)
 def calculate_acceleration(mass_: Quantity, force_: QuantityVector) -> QuantityVector:
-    result_acceleration = acceleration_law(force_)
-    acceleration_components = list_of_quantities(result_acceleration.components, {mass: mass_})
-    return QuantityVector(acceleration_components, force_.coordinate_system)
+    result_vector = acceleration_law(force_.to_base_vector())
+    return QuantityVector.from_base_vector(result_vector, subs={mass: mass_})

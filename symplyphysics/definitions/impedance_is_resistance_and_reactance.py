@@ -1,30 +1,44 @@
+"""
+Impedance is resistance and reactance
+=====================================
+
+*Impedance* is the combination of resistance and reactance (both inductive and capacitive) and is
+a complex number, containing both real and imaginary parts. The real part of impedance is
+resistance, and the imaginary part is reactance.
+
+**Notation:**
+
+#. :math:`i` is the imaginary unit.
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Electrical_impedance#Complex_impedance>`__.
+"""
+
 from sympy import (I, Eq, solve)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output)
+from symplyphysics import (Quantity, validate_input, validate_output, symbols)
 
-# Description
-## Impedance is the combination of resistance and reactance (both inductive and capacitive) and is
-## a complex number, containing both real and imaginary parts. (The real part of impedance is
-## resistance, while the imaginary part is reactance.)
+impedance = symbols.electrical_impedance
+"""
+:symbols:`electrical_impedance` of the system.
+"""
 
-# Definition: Z = R + j * X
-# Where:
-## Z is impedance,
-## R is resistance,
-## X is reactance,
-## j is imaginary number.
+resistance = symbols.electrical_resistance
+"""
+:symbols:`electrical_resistance` of the system.
+"""
 
-impedance = Symbol("impedance", units.impedance)
-resistance = Symbol("resistance", units.impedance)
-reactance = Symbol("reactance", units.impedance)
+reactance = symbols.electrical_reactance
+"""
+:symbols:`electrical_reactance` of the system.
+"""
 
 definition = Eq(impedance, resistance + I * reactance)
+"""
+:laws:symbol::
 
-definition_units_SI = units.ohm
-
-
-def print_law() -> str:
-    return print_expression(definition)
+:laws:latex::
+"""
 
 
 @validate_input(resistance_=resistance, reactance_=reactance)

@@ -1,29 +1,44 @@
+"""
+Light pressure
+==============
+
+Light pressure is the pressure exerted by light radiation incident on the surface of a body.
+Under normal light incidence on the surface, the light pressure depends only on the reflection
+coefficient and the intensity of the radiation.
+
+**Notation:**
+
+#. :quantity_notation:`speed_of_light`.
+
+**Links:**
+
+#. `BYJU's, "Radiation pressure formula" <https://byjus.com/physics/radiation-pressure/>`__.
+"""
+
 from sympy import (Eq, solve)
-from sympy.physics.units import speed_of_light
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output, dimensionless)
+from symplyphysics import (Quantity, validate_input, validate_output, symbols, quantities)
 
-# Description
-## Light pressure is the pressure exerted by light radiation incident on the surface of a body.
-## Under normal light incidence on the surface, the light pressure depends only on the reflection
-## coefficient and the intensity of the radiation.
+pressure = symbols.pressure
+"""
+Light :symbols:`pressure`.
+"""
 
-## Law is: p = I * (1 + R) / c, where
-## p - light pressure,
-## I - intensity of incident radiation,
-## R - surface reflection coefficient,
-## c - speed of light in vacuum.
+intensity = symbols.intensity
+"""
+:symbols:`intensity` of incident radiation.
+"""
 
-pressure = Symbol("pressure", units.pressure)
+reflection_coefficient = symbols.reflectance
+"""
+:symbols:`reflectance` of the surface.
+"""
 
-intensity = Symbol("intensity", units.power / units.area)
-reflection_coefficient = Symbol("reflection_coefficient", dimensionless)
+law = Eq(pressure, intensity * (1 + reflection_coefficient) / quantities.speed_of_light)
+"""
+:laws:symbol::
 
-law = Eq(pressure, intensity * (1 + reflection_coefficient) / speed_of_light)
-
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(intensity_=intensity, reflection_coefficient_=reflection_coefficient)

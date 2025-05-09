@@ -4,7 +4,10 @@ dist/
 __pycache__
 .pytest_cache
 setup.bat
-
 .venv
 venv/
 venv.bak/
+html/
+.vscode/
+docs/generated/
+docs/symplyphysics

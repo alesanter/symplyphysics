@@ -1,7 +1,6 @@
-from sympy import Derivative, sympify
+from sympy import Derivative
 from symplyphysics import (
     units,
-    Symbol,
     Quantity,
     QuantityVector,
     Vector,
@@ -9,6 +8,7 @@ from symplyphysics import (
     validate_output,
     scale_vector,
     add_cartesian_vectors,
+    symbols,
 )
 
 # Description
@@ -24,15 +24,11 @@ from symplyphysics import (
 ## L - vector of (total) angular momentum
 ## t - time
 
-time = Symbol("time", units.time)
+time = symbols.time
 
 
 def torque_law(angular_momentum_: Vector) -> Vector:
-    torque_components = list(
-        map(
-        lambda component: Derivative(component, time),
-        angular_momentum_.components,
-        ))
+    torque_components = [Derivative(component, time) for component in angular_momentum_.components]
     return Vector(torque_components, angular_momentum_.coordinate_system)
 
 
@@ -49,8 +45,8 @@ def calculate_torque(
 ) -> QuantityVector:
     angular_momentum_function = scale_vector(
         time / time_,
-        add_cartesian_vectors(angular_momentum_after_, scale_vector(-1, angular_momentum_before_)))
-    result_components = [
-        sympify(component).doit() for component in torque_law(angular_momentum_function).components
-    ]
+        add_cartesian_vectors(angular_momentum_after_.to_base_vector(),
+        scale_vector(-1, angular_momentum_before_.to_base_vector())))
+    result_torque_vector = torque_law(angular_momentum_function)
+    result_components = [component.doit() for component in result_torque_vector.components]
     return QuantityVector(result_components, angular_momentum_before_.coordinate_system)

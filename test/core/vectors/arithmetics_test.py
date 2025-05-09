@@ -1,14 +1,12 @@
+from typing import Any
 from collections import namedtuple
 from pytest import fixture, raises
-from sympy import atan2, cos, pi, sin, sqrt
+from sympy import atan2, cos, pi, sin, sqrt, Rational, nan
 from symplyphysics import (SI, Quantity, dimensionless, units, QuantityVector, Vector,
     CoordinateSystem, coordinates_transform)
-from symplyphysics.core.vectors.arithmetics import (add_cartesian_quantity_vectors,
-    add_cartesian_vectors, cross_cartesian_quantity_vectors, cross_cartesian_vectors, dot_vectors,
-    equal_vectors, quantity_vector_magnitude, quantity_vector_unit, scale_quantity_vector,
-    scale_vector, vector_magnitude, dot_quantity_vectors, vector_unit)
-
-# pylint: disable=too-many-locals
+from symplyphysics.core.vectors.arithmetics import (add_cartesian_vectors, cross_cartesian_vectors,
+    dot_vectors, equal_vectors, scale_vector, vector_magnitude, vector_unit, project_vector,
+    reject_cartesian_vector)
 
 Args = namedtuple("Args", ["C"])
 
@@ -93,7 +91,7 @@ def test_rebased_add_vectors(test_args: Args) -> None:
 
 def test_invalid_add_vectors(test_args: Args) -> None:
     C1 = CoordinateSystem()
-    with raises(TypeError):
+    with raises(ValueError):
         add_cartesian_vectors(Vector([1, 2], test_args.C), Vector([1, 2], C1))
     # non-cartesian addition is not supported
     C2 = CoordinateSystem(CoordinateSystem.System.CYLINDRICAL)
@@ -409,27 +407,47 @@ def test_basic_unit_vector() -> None:
 def test_basic_equal_quantity_vectors() -> None:
     Q1 = Quantity(1)
     Q2 = Quantity(2)
-    assert equal_vectors(QuantityVector([Q1, Q2]), QuantityVector([Q1, Q2]))
-    assert not equal_vectors(QuantityVector([Q1, Q2]), QuantityVector([Q2, Q1]))
+    assert equal_vectors(
+        QuantityVector([Q1, Q2]).to_base_vector(),
+        QuantityVector([Q1, Q2]).to_base_vector())
+    assert not equal_vectors(
+        QuantityVector([Q1, Q2]).to_base_vector(),
+        QuantityVector([Q2, Q1]).to_base_vector())
     L1 = Quantity(1 * units.meter)
     L2 = Quantity(2 * units.meter)
-    assert equal_vectors(QuantityVector([L1, L2]), QuantityVector([L1, L2]))
-    assert not equal_vectors(QuantityVector([L1, L2]), QuantityVector([Q1, Q2]))
+    assert equal_vectors(
+        QuantityVector([L1, L2]).to_base_vector(),
+        QuantityVector([L1, L2]).to_base_vector())
+    assert not equal_vectors(
+        QuantityVector([L1, L2]).to_base_vector(),
+        QuantityVector([Q1, Q2]).to_base_vector())
 
 
 def test_basic_add_quantity_vectors() -> None:
     Q1 = Quantity(1)
     Q2 = Quantity(2)
-    result = add_cartesian_quantity_vectors(QuantityVector([Q1, Q2]), QuantityVector([Q1, Q2]))
+    result_base_vector = add_cartesian_vectors(
+        QuantityVector([Q1, Q2]).to_base_vector(),
+        QuantityVector([Q1, Q2]).to_base_vector())
+    result = QuantityVector.from_base_vector(result_base_vector)
     assert [result.components[0].scale_factor, result.components[1].scale_factor] == [2, 4]
-    result = add_cartesian_quantity_vectors(QuantityVector([Q1, Q2]), QuantityVector([Q2, Q1]))
+    result_base_vector = add_cartesian_vectors(
+        QuantityVector([Q1, Q2]).to_base_vector(),
+        QuantityVector([Q2, Q1]).to_base_vector())
+    result = QuantityVector.from_base_vector(result_base_vector)
     assert [result.components[0].scale_factor, result.components[1].scale_factor] == [3, 3]
     L1 = Quantity(1 * units.meter)
     L2 = Quantity(2 * units.meter)
-    result = add_cartesian_quantity_vectors(QuantityVector([L1, L2]), QuantityVector([L1, L2]))
+    result_base_vector = add_cartesian_vectors(
+        QuantityVector([L1, L2]).to_base_vector(),
+        QuantityVector([L1, L2]).to_base_vector())
+    result = QuantityVector.from_base_vector(result_base_vector)
     assert [result.components[0].scale_factor, result.components[1].scale_factor] == [2, 4]
     assert result.dimension == units.length
-    result = add_cartesian_quantity_vectors(QuantityVector([L1, L2]), QuantityVector([L2, L1]))
+    result_base_vector = add_cartesian_vectors(
+        QuantityVector([L1, L2]).to_base_vector(),
+        QuantityVector([L2, L1]).to_base_vector())
+    result = QuantityVector.from_base_vector(result_base_vector)
     assert [result.components[0].scale_factor, result.components[1].scale_factor] == [3, 3]
     assert result.dimension == units.length
 
@@ -438,16 +456,19 @@ def test_basic_scale_quantity_vectors() -> None:
     Q1 = Quantity(1)
     Q2 = Quantity(2)
     initial = QuantityVector([Q1, Q2])
-    result = scale_quantity_vector(Quantity(2), initial)
+    result_base_vector = scale_vector(Quantity(2), initial.to_base_vector())
+    result = QuantityVector.from_base_vector(result_base_vector)
     assert [result.components[0].scale_factor, result.components[1].scale_factor] == [2, 4]
     assert result.dimension == dimensionless
     L1 = Quantity(1 * units.meter)
     L2 = Quantity(2 * units.meter)
     initial = QuantityVector([L1, L2])
-    result = scale_quantity_vector(Quantity(2), initial)
+    result_base_vector = scale_vector(Quantity(2), initial.to_base_vector())
+    result = QuantityVector.from_base_vector(result_base_vector)
     assert [result.components[0].scale_factor, result.components[1].scale_factor] == [2, 4]
     assert result.dimension == units.length
-    result = scale_quantity_vector(L2, initial)
+    result_base_vector = scale_vector(L2, initial.to_base_vector())
+    result = QuantityVector.from_base_vector(result_base_vector)
     assert [result.components[0].scale_factor, result.components[1].scale_factor] == [2, 4]
     assert result.dimension == units.length**2
 
@@ -455,40 +476,51 @@ def test_basic_scale_quantity_vectors() -> None:
 def test_basic_dot_quantity_product() -> None:
     Q1 = Quantity(1)
     Q2 = Quantity(2)
-    assert dot_quantity_vectors(QuantityVector([Q1, Q2]), QuantityVector([Q1,
-        Q2])).scale_factor == 5
+    result_dot = dot_vectors(
+        QuantityVector([Q1, Q2]).to_base_vector(),
+        QuantityVector([Q1, Q2]).to_base_vector())
+    assert Quantity(result_dot).scale_factor == 5
     L1 = Quantity(1 * units.meter)
     L2 = Quantity(2 * units.meter)
     distance1 = QuantityVector([L1, L2])
     distance2 = QuantityVector([L2, L1])
-    area = dot_quantity_vectors(distance1, distance2)
-    assert area.scale_factor == 4
-    SI.get_dimension_system().equivalent_dims(area.dimension, units.area)
+    area = dot_vectors(distance1.to_base_vector(), distance2.to_base_vector())
+    area_quantity = Quantity(area)
+    assert area_quantity.scale_factor == 4
+    SI.get_dimension_system().equivalent_dims(area_quantity.dimension, units.area)
 
 
 def test_basic_quantity_magnitude() -> None:
     Q1 = Quantity(1)
     Q2 = Quantity(2)
-    magnitude = quantity_vector_magnitude(QuantityVector([Q1, Q2]))
-    assert magnitude.scale_factor == sqrt(5)
-    assert magnitude.dimension == dimensionless
+    magnitude = vector_magnitude(QuantityVector([Q1, Q2]).to_base_vector())
+    magnitude_quantity = Quantity(magnitude)
+    assert magnitude_quantity.scale_factor == sqrt(5)
+    assert magnitude_quantity.dimension == dimensionless
     L1 = Quantity(1 * units.meter)
     L2 = Quantity(2 * units.meter)
     initial = QuantityVector([L1, L2])
-    magnitude = quantity_vector_magnitude(initial)
-    assert magnitude.scale_factor == sqrt(5)
-    SI.get_dimension_system().equivalent_dims(magnitude.dimension, units.length)
+    magnitude = vector_magnitude(initial.to_base_vector())
+    magnitude_quantity = Quantity(magnitude)
+    assert magnitude_quantity.scale_factor == sqrt(5)
+    SI.get_dimension_system().equivalent_dims(magnitude_quantity.dimension, units.length)
 
 
 def test_basic_quantity_cross_product() -> None:
     Q1 = Quantity(1)
     Q2 = Quantity(2)
-    crossed = cross_cartesian_quantity_vectors(QuantityVector([Q1, Q2]), QuantityVector([Q1, Q2]))
+    crossed_base_vector = cross_cartesian_vectors(
+        QuantityVector([Q1, Q2]).to_base_vector(),
+        QuantityVector([Q1, Q2]).to_base_vector())
+    crossed = QuantityVector.from_base_vector(crossed_base_vector)
     assert [
         crossed.components[0].scale_factor, crossed.components[1].scale_factor,
         crossed.components[2].scale_factor
     ] == [0, 0, 0]
-    crossed = cross_cartesian_quantity_vectors(QuantityVector([Q1, Q2]), QuantityVector([Q2, Q1]))
+    crossed_base_vector = cross_cartesian_vectors(
+        QuantityVector([Q1, Q2]).to_base_vector(),
+        QuantityVector([Q2, Q1]).to_base_vector())
+    crossed = QuantityVector.from_base_vector(crossed_base_vector)
     assert [
         crossed.components[0].scale_factor, crossed.components[1].scale_factor,
         crossed.components[2].scale_factor
@@ -497,7 +529,9 @@ def test_basic_quantity_cross_product() -> None:
     L2 = Quantity(2 * units.meter)
     distance1 = QuantityVector([L1, L2])
     distance2 = QuantityVector([L2, L1])
-    cross_area_vector = cross_cartesian_quantity_vectors(distance1, distance2)
+    cross_area_base_vector = cross_cartesian_vectors(distance1.to_base_vector(),
+        distance2.to_base_vector())
+    cross_area_vector = QuantityVector.from_base_vector(cross_area_base_vector)
     assert [
         cross_area_vector.components[0].scale_factor, cross_area_vector.components[1].scale_factor,
         cross_area_vector.components[2].scale_factor
@@ -508,14 +542,48 @@ def test_basic_quantity_cross_product() -> None:
 def test_basic_quantity_unit_vector() -> None:
     Q1 = Quantity(1)
     Q2 = Quantity(2)
-    unit_vector = quantity_vector_unit(QuantityVector([Q1, Q2]))
+    unit_base_vector = vector_unit(QuantityVector([Q1, Q2]).to_base_vector())
+    unit_vector = QuantityVector.from_base_vector(unit_base_vector)
     assert [unit_vector.components[0].scale_factor,
         unit_vector.components[1].scale_factor] == [1 / sqrt(5), 2 / sqrt(5)]
     L1 = Quantity(1 * units.meter)
     L2 = Quantity(2 * units.meter)
     initial = QuantityVector([L1, L2])
-    unit_vector = quantity_vector_unit(initial)
+    unit_base_vector = vector_unit(initial.to_base_vector())
+    unit_vector = QuantityVector.from_base_vector(unit_base_vector)
     assert [unit_vector.components[0].scale_factor,
         unit_vector.components[1].scale_factor] == [1 / sqrt(5), 2 / sqrt(5)]
     SI.get_dimension_system().equivalent_dims(unit_vector.components[0].dimension, units.length)
     SI.get_dimension_system().equivalent_dims(unit_vector.components[1].dimension, units.length)
+
+
+def test_cartesian_vector_projection() -> None:
+    w = Vector([1, 2, -1])
+
+    def check(v: Vector, correct: list[Any]) -> None:
+        derived = project_vector(v, w)
+        assert vector_magnitude(cross_cartesian_vectors(derived, w)) == 0
+        assert derived.components == correct
+
+    check(w, [1, 2, -1])
+    check(Vector([1, 0, 0]), [Rational(1, 6), Rational(1, 3), Rational(-1, 6)])
+    check(Vector([0, 1, 1]), [Rational(1, 6), Rational(1, 3), Rational(-1, 6)])
+    check(Vector([0, 1, 0]), [Rational(1, 3), Rational(2, 3), Rational(-1, 3)])
+    check(Vector([-2, 1, 0]), [0, 0, 0])
+
+    assert project_vector(Vector([1, 1, 1]), Vector([0, 0, 0])).components == [nan, nan, nan]
+
+
+def test_cartesian_vector_rejection() -> None:
+    w = Vector([1, 2, -1])
+
+    def check(v: Vector, correct: list[Any]) -> None:
+        derived = reject_cartesian_vector(v, w)
+        assert dot_vectors(derived, w) == 0
+        assert derived.components == correct
+
+    check(w, [0, 0, 0])
+    check(Vector([1, 0, 0]), [Rational(5, 6), Rational(-1, 3), Rational(1, 6)])
+    check(Vector([0, 1, 1]), [Rational(-1, 6), Rational(2, 3), Rational(7, 6)])
+    check(Vector([0, 1, 0]), [Rational(-1, 3), Rational(1, 3), Rational(1, 3)])
+    check(Vector([-2, 1, 0]), [-2, 1, 0])

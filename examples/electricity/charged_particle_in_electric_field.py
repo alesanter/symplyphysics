@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-from sympy import solve, symbols, sympify
+from sympy import solve, symbols
 from symplyphysics import print_expression, Vector, Quantity, units, convert_to
 from symplyphysics.laws.electricity.vector import electric_field_is_force_over_test_charge as electric_field_law
-from symplyphysics.laws.dynamics import acceleration_from_force
-from symplyphysics.laws.kinematic import constant_acceleration_movement_is_parabolic as const_acceleration_law
-from symplyphysics.laws.kinematic import distance_from_constant_velocity as const_velocity_law
+from symplyphysics.laws.dynamics import acceleration_is_force_over_mass
+from symplyphysics.laws.kinematics import position_via_constant_acceleration_and_time as const_acceleration_law
+from symplyphysics.laws.kinematics import position_via_constant_speed_and_time as const_velocity_law
 
 # Description
 ## A charged drop with a mass of m = 1.5e-7 g and a negative charge of magnitude Q = 2.8e-13 C enters
@@ -30,34 +30,35 @@ values = {
 
 electric_field_vector = Vector([0, -1 * electric_field_magnitude, 0])
 electrostatic_force_vector = electric_field_law.electrostatic_force_law(electric_field_vector)
-electrostatic_force_y_expr = sympify(electrostatic_force_vector.components[1])
+electrostatic_force_y_expr = electrostatic_force_vector.components[1]
 electrostatic_force_y = electrostatic_force_y_expr.subs(electric_field_law.test_charge, drop_charge)
 
-drop_acceleration_y = solve(acceleration_from_force.law,
-    acceleration_from_force.acceleration)[0].subs({
-    acceleration_from_force.force: electrostatic_force_y,
-    acceleration_from_force.mass: drop_mass,
+drop_acceleration_y = solve(acceleration_is_force_over_mass.law,
+    acceleration_is_force_over_mass.acceleration)[0].subs({
+    acceleration_is_force_over_mass.force: electrostatic_force_y,
+    acceleration_is_force_over_mass.mass: drop_mass,
     })
 
 movement_time = symbols("movement_time")
 
 # Since no forces act on the drop along the x axis, the projection of the acceleration on it is zero
 horizontal_movement_law = const_velocity_law.law.subs({
-    const_velocity_law.constant_velocity: drop_speed_x,
+    const_velocity_law.speed: drop_speed_x,
     const_velocity_law.initial_position: 0,
-    const_velocity_law.distance(const_velocity_law.movement_time): plate_length_x,
-    const_velocity_law.movement_time: movement_time,
+    const_velocity_law.final_position: plate_length_x,
+    const_velocity_law.time: movement_time,
 })
 
 vertical_movement_law = const_acceleration_law.law.subs({
-    const_acceleration_law.constant_acceleration: drop_acceleration_y,
-    const_acceleration_law.initial_velocity: 0,
-    const_acceleration_law.movement_time: movement_time,
+    const_acceleration_law.acceleration: drop_acceleration_y,
+    const_acceleration_law.initial_speed: 0,
+    const_acceleration_law.time: movement_time,
+    const_acceleration_law.initial_position: 0,
 })
 
 vertical_deflection = solve([horizontal_movement_law, vertical_movement_law],
-    (movement_time, const_acceleration_law.distance(movement_time)),
-    dict=True)[0][const_acceleration_law.distance(movement_time)]
+    (movement_time, const_acceleration_law.final_position),
+    dict=True)[0][const_acceleration_law.final_position]
 
 vertical_deflection_expr = Quantity(vertical_deflection.subs(values))
 vertical_deflection_value = convert_to(vertical_deflection_expr, units.millimeter).evalf(3)

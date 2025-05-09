@@ -1,36 +1,51 @@
-from sympy import (Eq, solve)
-from sympy.physics.units import magnetic_constant
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output, dimensionless)
+"""
+Magnetic flux density from magnetic field strength
+==================================================
 
-# Description
-## Magnetic induction is a physical quantity that is a force characteristic of a magnetic field, namely, a characteristic
-## of its action on moving charged particles and on bodies with a magnetic moment.
+Magnetic flux density is a physical quantity that is a force characteristic of a magnetic
+field, namely, a characteristic of its action on moving charged particles and on bodies
+with a magnetic moment.
 
-## Law is: B = mu0 * mu * H, where
-## B - magnetic field induction,
-## mu0 - magnetic constant,
-## mu - relative permeability of medium,
-## H - magnetic field intensity.
+**Links:**
 
-induction = Symbol("induction", units.magnetic_density)
+#. `Wikipedia <https://en.wikipedia.org/wiki/Magnetic_field#The_H-field>`__.
 
-relative_permeability = Symbol("relative_permeability", dimensionless)
-intensity = Symbol("intensity", units.current / units.length)
+..
+    TODO: rename file
+"""
 
-law = Eq(induction, magnetic_constant * relative_permeability * intensity)
+from sympy import Eq, solve
+from symplyphysics import Quantity, validate_input, validate_output, symbols
+
+magnetic_flux_density = symbols.magnetic_flux_density
+"""
+:symbols:`magnetic_flux_density`.
+"""
+
+absolute_permeability = symbols.absolute_permeability
+"""
+:symbols:`absolute_permeability` of the medium.
+"""
+
+magnetic_field_strength = symbols.magnetic_field_strength
+"""
+:symbols:`magnetic_field_strength`.
+"""
+
+law = Eq(magnetic_flux_density, absolute_permeability * magnetic_field_strength)
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 
-def print_law() -> str:
-    return print_expression(law)
-
-
-@validate_input(relative_permeability_=relative_permeability, intensity_=intensity)
-@validate_output(induction)
-def calculate_induction(relative_permeability_: float, intensity_: Quantity) -> Quantity:
-    result_expr = solve(law, induction, dict=True)[0][induction]
+@validate_input(absolute_permeability_=absolute_permeability, intensity_=magnetic_field_strength)
+@validate_output(magnetic_flux_density)
+def calculate_induction(absolute_permeability_: Quantity, intensity_: Quantity) -> Quantity:
+    result_expr = solve(law, magnetic_flux_density, dict=True)[0][magnetic_flux_density]
     result_expr = result_expr.subs({
-        relative_permeability: relative_permeability_,
-        intensity: intensity_,
+        absolute_permeability: absolute_permeability_,
+        magnetic_field_strength: intensity_,
     })
     return Quantity(result_expr)

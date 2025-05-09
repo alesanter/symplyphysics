@@ -1,15 +1,30 @@
-from sympy import Eq, solve, sqrt
-from sympy.physics.units import gravitational_constant
+"""
+Gravitational force from mass and distance
+==========================================
+
+In classical mechanics, the **gravitational force** is a fundamental attractive force that
+exists between any two massive bodies. Its magnitude is proportional to the mass of the
+bodies and inversely proportional to the distance squared between the bodies.
+
+**Notation:**
+
+#. :quantity_notation:`gravitational_constant`.
+
+**Links:**
+
+#. `Physics LibreTexts. Newton's Law of Universal Gravitation (13.2.1) <https://phys.libretexts.org/Workbench/PH_245_Textbook_V2/13%3A_Gravitation/13.02%3A_Newton's_Law_of_Universal_Gravitation>`__.
+"""
+
+from sympy import Eq, solve, sqrt, Expr
 from symplyphysics import (
-    units,
     Quantity,
-    Symbol,
-    print_expression,
     validate_input,
     validate_output,
     vector_magnitude,
+    clone_as_symbol,
+    symbols,
+    quantities,
 )
-from symplyphysics.core.dimensions import ScalarValue
 from symplyphysics.core.points.cartesian_point import CartesianPoint
 from symplyphysics.core.expr_comparisons import expr_equals
 from symplyphysics.core.fields.scalar_field import ScalarField
@@ -17,69 +32,76 @@ from symplyphysics.laws.dynamics.fields import (
     conservative_force_is_gradient_of_potential_energy as gradient_law,)
 from symplyphysics.laws.gravity import gravitational_potential_energy
 
-# Description
-## Every object generates gravity field around it. Any other object in this field is pulled toward generator.
-## Gravitational force between two object if proportional to masses of objects and counter-proportional to distance between their mass centers.
-## Law: F = G * m1 * m2 / R**2
-## Where:
-## F - gravitational force
-## m1 and m2 - masses of objects
-## R - distance between mass centers of objects
-## G - gravitational constant
+gravitational_force = symbols.force
+"""
+Gravitational :symbols:`force`.
+"""
 
-gravitational_force = Symbol("gravitational_force", units.force)
-first_object_mass = Symbol("first_object_mass", units.mass)
-second_object_mass = Symbol("second_object_mass", units.mass)
-distance_between_mass_centers = Symbol("distance_between_mass_centers", units.length)
+first_mass = clone_as_symbol(symbols.mass, subscript="1")
+"""
+:symbols:`mass` of the first body.
+"""
+
+second_mass = clone_as_symbol(symbols.mass, subscript="2")
+"""
+:symbols:`mass` of the second body.
+"""
+
+distance_between_mass_centers = symbols.euclidean_distance
+"""
+:symbols:`euclidean_distance` between the centers of the bodies..
+"""
 
 law = Eq(
-    gravitational_force, gravitational_constant * first_object_mass * second_object_mass /
-    distance_between_mass_centers**2)
+    gravitational_force,
+    quantities.gravitational_constant * first_mass * second_mass / distance_between_mass_centers**2)
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 # Derive law from the gravitational potential energy
 # Condition: space must be 3-dimensional and flat
 
-potential = gravitational_potential_energy.law.rhs.subs({
-    gravitational_potential_energy.first_mass: first_object_mass,
-    gravitational_potential_energy.second_mass: second_object_mass,
+_potential = gravitational_potential_energy.law.rhs.subs({
+    gravitational_potential_energy.first_mass: first_mass,
+    gravitational_potential_energy.second_mass: second_mass,
     gravitational_potential_energy.distance_between_mass_centers: distance_between_mass_centers,
 })
 
 
-def potential_field_function(point: CartesianPoint) -> ScalarValue:
-    return potential.subs(
+def potential_field_function(point: CartesianPoint) -> Expr:
+    return _potential.subs(
         distance_between_mass_centers,
         sqrt(point.x**2 + point.y**2 + point.z**2),
     )
 
 
-potential_field = ScalarField(potential_field_function)
+_potential_field = ScalarField(potential_field_function)
 
-gravitational_force_vector = gradient_law.law(potential_field)
-gravitational_force_derived = vector_magnitude(gravitational_force_vector).simplify()
+_gravitational_force_vector = gradient_law.law(_potential_field)
+_gravitational_force_derived = vector_magnitude(_gravitational_force_vector).simplify()
 
-x, y, z = gravitational_force_vector.coordinate_system.coord_system.base_scalars()
-gravitational_force_from_law = law.rhs.subs(distance_between_mass_centers, sqrt(x**2 + y**2 + z**2))
+_x, _y, _z = _gravitational_force_vector.coordinate_system.coord_system.base_scalars()
+_gravitational_force_from_law = law.rhs.subs(distance_between_mass_centers,
+    sqrt(_x**2 + _y**2 + _z**2))
 
 # sympy avoids oversimplifications in case of square roots without certain assumptions,
 # therefore we resort to squaring both sides to make it work
-assert expr_equals(gravitational_force_derived**2, gravitational_force_from_law**2)
+assert expr_equals(_gravitational_force_derived**2, _gravitational_force_from_law**2)
 
 
-def print_law() -> str:
-    return print_expression(law)
-
-
-@validate_input(first_object_mass_=first_object_mass,
-    second_object_mass_=second_object_mass,
+@validate_input(first_object_mass_=first_mass,
+    second_object_mass_=second_mass,
     distance_between_objects_=distance_between_mass_centers)
 @validate_output(gravitational_force)
 def calculate_force(first_object_mass_: Quantity, second_object_mass_: Quantity,
     distance_between_objects_: Quantity) -> Quantity:
     result_force_expr = solve(law, gravitational_force, dict=True)[0][gravitational_force]
     result_expr = result_force_expr.subs({
-        first_object_mass: first_object_mass_,
-        second_object_mass: second_object_mass_,
+        first_mass: first_object_mass_,
+        second_mass: second_object_mass_,
         distance_between_mass_centers: distance_between_objects_
     })
     return Quantity(result_expr)

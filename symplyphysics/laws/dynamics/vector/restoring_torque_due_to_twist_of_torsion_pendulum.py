@@ -4,11 +4,10 @@ from symplyphysics import (
     scale_vector,
     units,
     Quantity,
-    Symbol,
     validate_input,
     validate_output,
-    list_of_quantities,
     angle_type,
+    symbols,
 )
 
 # Description
@@ -20,7 +19,7 @@ from symplyphysics import (
 ## kappa - torsion constant of the pendulum
 ## theta - angular displacement pseudovector, also known as rotation vector
 
-torsion_constant = Symbol("torsion_constant", units.force * units.length)
+torsion_constant = symbols.torsion_stiffness
 
 
 def torque_law(rotation_vector_: Vector) -> Vector:
@@ -35,15 +34,15 @@ def rotation_vector_law(torque_: Vector) -> Vector:
 @validate_output(units.force * units.length)
 def calculate_torque(torsion_constant_: Quantity,
     rotation_vector_: QuantityVector) -> QuantityVector:
-    result = torque_law(rotation_vector_)
-    result_components = list_of_quantities(result.components, {torsion_constant: torsion_constant_})
-    return QuantityVector(result_components, rotation_vector_.coordinate_system)
+    result_vector = torque_law(rotation_vector_.to_base_vector())
+    return QuantityVector.from_base_vector(result_vector,
+        subs={torsion_constant: torsion_constant_})
 
 
 @validate_input(torsion_constant_=torsion_constant, torque_=units.force * units.length)
 @validate_output(angle_type)
 def calculate_rotation_vector(torsion_constant_: Quantity,
     torque_: QuantityVector) -> QuantityVector:
-    result = rotation_vector_law(torque_)
-    result_components = list_of_quantities(result.components, {torsion_constant: torsion_constant_})
-    return QuantityVector(result_components, torque_.coordinate_system)
+    result_vector = rotation_vector_law(torque_.to_base_vector())
+    return QuantityVector.from_base_vector(result_vector,
+        subs={torsion_constant: torsion_constant_})

@@ -1,42 +1,75 @@
-from sympy import (Eq, solve, sqrt, exp)
-from sympy.physics.units import boltzmann
+"""
+Concentration of intrinsic charge carriers
+==========================================
+
+In the absence of external influences (lighting, electric field, etc.), there is a
+nonzero concentration of free charge carriers in the semiconductor.
+
+**Notation:**
+
+#. :quantity_notation:`boltzmann_constant`.
+
+**Conditions:**
+
+#. There are no external influences, such as lighting, electric field, etc.
+
+**Links:**
+
+#. `University Wafer, Intrinsic carrier concentration <https://www.universitywafer.com/intrinsic-carrier-concentration.html>`_.
+"""
+
+from sympy import Eq, solve, exp, sqrt
 from symplyphysics import (
-    units,
+    symbols,
+    quantities,
     Quantity,
-    Symbol,
-    print_expression,
     validate_input,
     validate_output,
+    clone_as_symbol,
 )
 
-# Description
-## In the absence of external influences (lighting, electric field, etc.), there is a
-## concentration of free charge carriers in the semiconductor.
+charge_carriers_concentration = symbols.number_density
+"""
+:symbols:`number_density` of intrinsic charge carriers.
+"""
 
-## Law is: n = sqrt(Nc*Nv) * exp(-Eg / 2kT), where
-## n is concentration of intrinsic charge carriers,
-## Nc - effective density of states in the conduction band,
-## Nv - effective density of states in the valence band,
-## Eg - the width of band gap,
-## k - Boltzmann constant,
-## T - temperature.
+density_of_states_in_conduction_band = clone_as_symbol(
+    symbols.density_of_states,
+    display_symbol="N_c",
+    display_latex="N_\\text{c}",
+)
+"""
+Effective :symbols:`density_of_states` in the conduction band.
+"""
 
-charge_carriers_concentration = Symbol("charge_carriers_concentration", 1 / units.volume)
+density_of_states_in_valence_band = clone_as_symbol(
+    symbols.density_of_states,
+    display_symbol="N_v",
+    display_latex="N_\\text{v}",
+)
+"""
+Effective :symbols:`density_of_states` in the valence band.
+"""
 
-density_of_states_in_conduction_band = Symbol("density_of_states_in_conduction_band",
-    1 / units.volume)
-density_of_states_in_valence_band = Symbol("density_of_states_in_valence_band", 1 / units.volume)
-temperature = Symbol("temperature", units.temperature)
-band_gap = Symbol("band_gap", units.energy)
+temperature = symbols.temperature
+"""
+:symbols:`temperature` of the semiconductor.
+"""
+
+band_gap = symbols.band_gap
+"""
+:symbols:`band_gap` of the semiconductor.
+"""
 
 law = Eq(
     charge_carriers_concentration,
     sqrt(density_of_states_in_conduction_band * density_of_states_in_valence_band) * exp(-band_gap /
-    (2 * boltzmann * temperature)))
+    (2 * quantities.boltzmann_constant * temperature)))
+"""
+:laws:symbol::
 
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(density_of_states_in_conduction_band_=density_of_states_in_conduction_band,

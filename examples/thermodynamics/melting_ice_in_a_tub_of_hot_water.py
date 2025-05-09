@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
-from sympy import solve, Symbol, Eq
-from symplyphysics import print_expression, Quantity, prefixes, units, convert_to
+from sympy import Idx, solve, Symbol, Eq
+from symplyphysics import print_expression, Quantity, prefixes, units, convert_to, global_index
 from symplyphysics.core.symbols.celsius import to_kelvin_quantity, Celsius
 from symplyphysics.laws.conservation import mixture_mass_equal_sum_of_components_masses as sum_masses_law
-from symplyphysics.laws.thermodynamics import thermal_energy_from_mass_and_temperature as energy_heating_law
-from symplyphysics.laws.thermodynamics import energy_to_melt_from_mass as energy_melting_law
+from symplyphysics.laws.thermodynamics import (
+    heat_is_heat_capacity_times_temperature_change as thermal_energy_law,
+    latent_heat_of_fusion_via_mass as energy_melting_law,
+    total_energy_transfer_is_zero_in_isolated_system as thermodinamics_law_1,
+)
+from symplyphysics.laws.quantities import quantity_is_specific_quantity_times_mass as specific_qty_law
 from symplyphysics.definitions import density_from_mass_volume as density_law
-from symplyphysics.laws.thermodynamics import sum_of_heat_transfer_is_zero as thermodinamics_law_1
 
 # Example from https://easyfizika.ru/zadachi/termodinamika/vannu-emkostyu-100-litrov-neobhodimo-zapolnit-vodoj-imeyushhej-temperaturu-30-c/
 # A bath with a capacity of 100 liters must be filled
@@ -36,44 +39,61 @@ density_of_water_equation = density_law.definition.subs({
 mass_of_all_water = solve(density_of_water_equation, density_law.mass,
     dict=True)[0][density_law.mass]
 
-mass_of_all_water_equation = sum_masses_law.law.subs({
-    sum_masses_law.masses_of_components: (mass_of_ice, mass_of_hot_water),
-    sum_masses_law.mass_of_mixture: mass_of_all_water
-}).doit()
+local_index_ = Idx("local_index_", (1, 2))
+sum_of_two_masses = sum_masses_law.law.subs(global_index, local_index_).doit()
+mass_of_all_water_equation = sum_of_two_masses.subs({
+    sum_masses_law.component_mass[1]: mass_of_ice,
+    sum_masses_law.component_mass[2]: mass_of_hot_water,
+    sum_masses_law.mixture_mass: mass_of_all_water,
+})
+
 mass_of_hot_water_value = solve(mass_of_all_water_equation, mass_of_hot_water,
     dict=True)[0][mass_of_hot_water]
 
-energy_cooling_hot_water = energy_heating_law.law.subs({
-    energy_heating_law.specific_heat_capacity: specific_heat_heating_water,
-    energy_heating_law.body_mass: mass_of_hot_water_value,
-    energy_heating_law.temperature_origin: temperature_of_hot_water,
-    energy_heating_law.temperature_end: temperature_end
+initial_water_heat_capacity = specific_qty_law.law.rhs.subs({
+    specific_qty_law.specific_quantity: specific_heat_heating_water,
+    specific_qty_law.mass: mass_of_hot_water_value,
 })
 
-energy_to_heating_ice_equation = energy_heating_law.law.subs({
-    energy_heating_law.specific_heat_capacity: specific_heat_heating_ice,
-    energy_heating_law.body_mass: mass_of_ice,
-    energy_heating_law.temperature_origin: temperature_of_ice,
-    energy_heating_law.temperature_end: temperature_melt_ice
+energy_cooling_hot_water = thermal_energy_law.law.subs({
+    thermal_energy_law.heat_capacity: initial_water_heat_capacity,
+    thermal_energy_law.temperature_change: temperature_end - temperature_of_hot_water,
+})
+
+initial_ice_heat_capacity = specific_qty_law.law.rhs.subs({
+    specific_qty_law.specific_quantity: specific_heat_heating_ice,
+    specific_qty_law.mass: mass_of_ice,
+})
+
+energy_to_heating_ice_equation = thermal_energy_law.law.subs({
+    thermal_energy_law.heat_capacity: initial_ice_heat_capacity,
+    thermal_energy_law.temperature_change: temperature_melt_ice - temperature_of_ice,
 })
 
 energy_to_melt_ice_equation = energy_melting_law.law.subs({
-    energy_melting_law.specific_heat_melting: specific_heat_melting_ice,
-    energy_melting_law.mass_of_matter: mass_of_ice
+    energy_melting_law.specific_heat_of_fusion: specific_heat_melting_ice,
+    energy_melting_law.mass: mass_of_ice
 })
 
-energy_to_heat_melted_ice_equation = energy_heating_law.law.subs({
-    energy_heating_law.specific_heat_capacity: specific_heat_heating_water,
-    energy_heating_law.body_mass: mass_of_ice,
-    energy_heating_law.temperature_origin: temperature_melt_ice,
-    energy_heating_law.temperature_end: temperature_end
+water_from_ice_heat_capacity = specific_qty_law.law.rhs.subs({
+    specific_qty_law.specific_quantity: specific_heat_heating_water,
+    specific_qty_law.mass: mass_of_ice,
 })
 
-thermodinamics_law_1_equation = thermodinamics_law_1.law.subs({
-    thermodinamics_law_1.amounts_energy:
-    (energy_cooling_hot_water.rhs, energy_to_heating_ice_equation.rhs,
-    energy_to_melt_ice_equation.rhs, energy_to_heat_melted_ice_equation.rhs)
-}).doit()
+energy_to_heat_melted_ice_equation = thermal_energy_law.law.subs({
+    thermal_energy_law.heat_capacity: water_from_ice_heat_capacity,
+    thermal_energy_law.temperature_change: temperature_end - temperature_melt_ice,
+})
+
+local_index_ = Idx("local_index_", (1, 4))
+thermodinamics_law_1_four_energies = thermodinamics_law_1.law.subs(global_index,
+    local_index_).doit()
+thermodinamics_law_1_equation = thermodinamics_law_1_four_energies.subs({
+    thermodinamics_law_1.energy[1]: energy_cooling_hot_water.rhs,
+    thermodinamics_law_1.energy[2]: energy_to_heating_ice_equation.rhs,
+    thermodinamics_law_1.energy[3]: energy_to_melt_ice_equation.rhs,
+    thermodinamics_law_1.energy[4]: energy_to_heat_melted_ice_equation.rhs,
+})
 
 mass_of_ice_equation = solve(thermodinamics_law_1_equation, mass_of_ice, dict=True)[0][mass_of_ice]
 answer = Eq(mass_of_ice, mass_of_ice_equation)

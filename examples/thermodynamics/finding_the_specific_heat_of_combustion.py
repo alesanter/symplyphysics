@@ -2,10 +2,13 @@
 
 from sympy import solve, Symbol, Eq
 from symplyphysics.core.symbols.celsius import to_kelvin_quantity, Celsius
-from symplyphysics.laws.thermodynamics import thermal_energy_from_mass_and_temperature as energy_heating_law
 from symplyphysics import print_expression, Quantity, prefixes, units, convert_to
-from symplyphysics.laws.electricity import power_factor_from_active_and_full_power as efficiency_law
-from symplyphysics.laws.thermodynamics import energy_from_combustion as combustion_energy_law
+from symplyphysics.laws.electricity import power_factor_is_real_power_over_apparent_power as efficiency_law
+from symplyphysics.laws.thermodynamics import (
+    heat_is_heat_capacity_times_temperature_change as thermal_energy_law,
+    heat_of_combustion_via_mass as combustion_energy_law,
+)
+from symplyphysics.laws.quantities import quantity_is_specific_quantity_times_mass as specific_qty_law
 
 # Example from https://easyfizika.ru/zadachi/termodinamika/chtoby-nagret-1-8-kg-vody-ot-18-c-do-kipeniya-na-gorelke-s-kpd-25-potrebovalos/
 # It took 92 g of fuel to heat 1.8 kg of water from 18 ° C to boiling on a burner
@@ -21,21 +24,24 @@ specific_heat_heating = Symbol("specific_heat_heating")
 
 specific_heat_combustion = Symbol("specific_heat_of_combustion")
 
-energy_heating_value = energy_heating_law.law.subs({
-    energy_heating_law.specific_heat_capacity: specific_heat_heating,
-    energy_heating_law.temperature_origin: temperature_start,
-    energy_heating_law.temperature_end: temperature_end,
-    energy_heating_law.body_mass: mass_of_liquid
+heat_capacity = specific_qty_law.law.rhs.subs({
+    specific_qty_law.specific_quantity: specific_heat_heating,
+    specific_qty_law.mass: mass_of_liquid,
+})
+
+energy_heating_value = thermal_energy_law.law.subs({
+    thermal_energy_law.heat_capacity: heat_capacity,
+    thermal_energy_law.temperature_change: temperature_end - temperature_start,
 }).rhs
 
 energy_combustion_value = combustion_energy_law.law.subs({
-    combustion_energy_law.specific_heat_combustion: specific_heat_combustion,
-    combustion_energy_law.mass_of_matter: mass_of_fuel
+    combustion_energy_law.specific_heat_of_combustion: specific_heat_combustion,
+    combustion_energy_law.mass: mass_of_fuel
 }).rhs
 
 efficiency_equation = efficiency_law.law.subs({
-    efficiency_law.active_power: energy_heating_value,
-    efficiency_law.full_power: energy_combustion_value,
+    efficiency_law.real_power: energy_heating_value,
+    efficiency_law.apparent_power: energy_combustion_value,
     efficiency_law.power_factor: efficiency_factor
 })
 specific_heat_combustion_value = solve(efficiency_equation, specific_heat_combustion,

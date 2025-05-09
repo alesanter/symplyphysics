@@ -1,26 +1,39 @@
-from sympy import (Eq, solve)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output)
+"""
+Electric charge is constant in isolated system
+==============================================
 
-# Description
-## Q_after = Q_before
-## Where Q_after - summary electric charge of isolated electric system after any period of time, and Q_before - initial summary charge.
-## In other words, with no external charge flowing thougth the bouds of system the summary electric charge of all system components remains constant
-## during any current flows (charge interchanges) between components. Charge is neither being created in isolated system nor dissapearing.
+The electric charge of an isolated system is conserved. As a result, its charge is constant
+at all times.
 
-charge_before = Symbol("charge_before", units.charge)
-charge_after = Symbol("charge_after", units.charge)
+**Links:**
 
-law = Eq(charge_after, charge_before)
+#. `Wikipedia <https://en.wikipedia.org/wiki/Charge_conservation>`__.
+"""
+
+from sympy import Eq, solve
+from symplyphysics import Quantity, validate_input, validate_output, symbols, clone_as_symbol
+
+initial_charge = clone_as_symbol(symbols.charge, subscript="0")
+"""
+Initial :symbols:`charge` of the system.
+"""
+
+final_charge = clone_as_symbol(symbols.charge, subscript="1")
+"""
+Final :symbols:`charge` of the system.
+"""
+
+law = Eq(final_charge, initial_charge)
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 
-def print_law() -> str:
-    return print_expression(law)
-
-
-@validate_input(charge_before_=charge_before)
-@validate_output(charge_after)
+@validate_input(charge_before_=initial_charge)
+@validate_output(final_charge)
 def calculate_charge_after(charge_before_: Quantity) -> Quantity:
-    solved = solve(law, charge_after, dict=True)[0][charge_after]
-    result_expr = solved.subs(charge_before, charge_before_)
+    solved = solve(law, final_charge, dict=True)[0][final_charge]
+    result_expr = solved.subs(initial_charge, charge_before_)
     return Quantity(result_expr)

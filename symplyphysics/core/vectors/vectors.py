@@ -1,12 +1,15 @@
 from __future__ import annotations
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Any
+from sympy import Expr, simplify, sympify
 from sympy.vector import express, Vector as SymVector
 from sympy.vector.operators import _get_coord_systems
 from sympy.physics.units import Dimension
+from sympy.physics.units.definitions.dimension_definitions import angle as angle_type
 
-from ..dimensions import assert_equivalent_dimension, dimensionless, ScalarValue
-from ..symbols.quantities import Quantity
-from ..symbols.symbols import DimensionSymbol, next_name
+from ..dimensions import assert_equivalent_dimension, dimensionless
+from ..symbols.quantities import Quantity, subs_list
+from ..symbols.id_generator import next_id
+from ..symbols.symbols import DimensionSymbol
 from ..coordinate_systems.coordinate_systems import CoordinateSystem
 
 
@@ -23,22 +26,22 @@ class Vector:
     #NOTE: 4 and higher dimensional vectors are not supported cause of using CoordSys3D
     #      to allow rebasing vector coordinate system.
     _coordinate_system: CoordinateSystem
-    _components: list[ScalarValue]
+    _components: list[Expr]
 
     def __init__(
         self,
-        components: Sequence[ScalarValue],
+        components: Sequence[Any],
         coordinate_system: CoordinateSystem = CoordinateSystem(CoordinateSystem.System.CARTESIAN)
     ) -> None:
         self._coordinate_system = coordinate_system
-        self._components = list(components)
+        self._components = [sympify(c, strict=True) for c in components]
 
     @property
     def coordinate_system(self) -> CoordinateSystem:
         return self._coordinate_system
 
     @property
-    def components(self) -> Sequence[ScalarValue]:
+    def components(self) -> Sequence[Expr]:
         return self._components
 
     # Converts SymPy Vector to Vector
@@ -94,56 +97,68 @@ class Vector:
             variables=True)
         return Vector.from_sympy_vector(transformed_vector_sympy, coordinate_system)
 
+    def simplify(self, **kwargs: Any) -> Vector:
+        components = [simplify(component, **kwargs) for component in self.components]
+        return Vector(components, self.coordinate_system)
 
-# TODO: vectors in polar coordinates have angle type for some components.
-#       It is not supported by this class.
-class QuantityVector(Vector, DimensionSymbol):
+    def subs(self, *args: Any) -> Vector:
+        components = [sympify(component, strict=True).subs(*args) for component in self.components]
+        return Vector(components, self.coordinate_system)
 
-    def __init__(
-        self,
-        components: Sequence[Quantity | ScalarValue],
-        coordinate_system: CoordinateSystem = CoordinateSystem(CoordinateSystem.System.CARTESIAN)
-    ) -> None:
-        quantities = QuantityVector._expr_to_quantities(components)
+
+class QuantityVector(DimensionSymbol):
+    # Vector of scalar values, ie expressions or numbers
+    _inner_vector: Vector
+
+    def __init__(self,
+        components: Sequence[Quantity | Any],
+        coordinate_system: CoordinateSystem = CoordinateSystem(CoordinateSystem.System.CARTESIAN),
+        *,
+        dimension: Optional[Dimension] = None) -> None:
+        quantities = [
+            c if isinstance(c, Quantity) else Quantity(c, dimension=dimension) for c in components
+        ]
         # find first dimension with non-zero scale factor
-        dimension = dimensionless if len(quantities) == 0 else quantities[0].dimension
-        for q in quantities:
-            if q.scale_factor != 0:
-                dimension = q.dimension
-                break
+        if dimension is None:
+            dimension = dimensionless
+            for q in quantities:
+                if q.scale_factor != 0:
+                    dimension = q.dimension
+                    break
         scale_factors = []
         for idx, c in enumerate(quantities):
-            param_name_indexed = f"{c.display_name}[{idx}]"
-            assert_equivalent_dimension(c, param_name_indexed, "QuantityVector", dimension)
+            dimension_to_check = angle_type if CoordinateSystem.is_angle_component(
+                coordinate_system.coord_system_type, idx) else dimension
+            assert_equivalent_dimension(c, c.display_name, "QuantityVector", dimension_to_check)
             scale_factors.append(c.scale_factor)
-        DimensionSymbol.__init__(self, next_name("VEC"), dimension)
-        Vector.__init__(self, scale_factors, coordinate_system)
+
+        i = next_id()
+        code_str = f"VEC{i}"
+        latex_str = f"v_{{{i}}}"
+        DimensionSymbol.__init__(self, code_str, dimension, display_latex=latex_str)
+        self._inner_vector = Vector(scale_factors, coordinate_system)
 
     @property
     def components(self) -> Sequence[Quantity]:
-        return [Quantity(c, dimension=self.dimension) for c in self._components]
+        quantities = []
+        for idx, c in enumerate(self._inner_vector.components):
+            dimension_to_set = angle_type if CoordinateSystem.is_angle_component(
+                self._inner_vector.coordinate_system.coord_system_type, idx) else self.dimension
+            quantities.append(Quantity(c, dimension=dimension_to_set))
+        return quantities
+
+    @property
+    def coordinate_system(self) -> CoordinateSystem:
+        return self._inner_vector.coordinate_system
+
+    def to_base_vector(self) -> Vector:
+        # Quantities are expressions - do not need additional sympify
+        return Vector(self.components, self.coordinate_system)
 
     @staticmethod
-    def _expr_to_quantities(components: Sequence[ScalarValue | Quantity],
-        dimension: Optional[Dimension] = None) -> Sequence[Quantity]:
-        return [
-            c if isinstance(c, Quantity) else Quantity(c, dimension=dimension) for c in components
-        ]
-
-    @staticmethod
-    def from_sympy_vector(sympy_vector_: SymVector,
-        coordinate_system: CoordinateSystem = CoordinateSystem(CoordinateSystem.System.CARTESIAN),
+    def from_base_vector(vector: Vector,
         *,
-        dimension: Optional[Dimension] = None) -> QuantityVector:
-        vector_ = Vector.from_sympy_vector(sympy_vector_, coordinate_system)
-        return QuantityVector(QuantityVector._expr_to_quantities(vector_.components, dimension),
-            coordinate_system)
-
-    # Convert vector coordinate system to new basis and construct new vector.
-    # Rebased vector should be the same as old vector but in new coordinate system.
-    # Quantities should not contain free symbols, eg coordinate_system.x, so they cannot be
-    # properly rebased. Only coordinate system rotation and type conversion is supported.
-    def rebase(self, coordinate_system: CoordinateSystem) -> QuantityVector:
-        vector_ = Vector(self.components, self.coordinate_system)
-        rebased = vector_.rebase(coordinate_system)
-        return QuantityVector(rebased.components, coordinate_system)
+        dimension: Optional[Dimension] = None,
+        subs: Optional[dict[Expr, Quantity]] = None) -> QuantityVector:
+        components = vector.components if subs is None else subs_list(vector.components, subs)
+        return QuantityVector(components, vector.coordinate_system, dimension=dimension)

@@ -1,41 +1,54 @@
-from sympy import Eq, solve, S
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-                           validate_output, dimensionless, convert_to)
+"""
+Nusselt number formula
+======================
 
+Nusselt number is the ratio of total heat transfer to conductive heat transfer at a
+boundary in a fluid. It can be expressed using the heat transfer coefficient of the
+flow, characteristic length of the system, and thermal conductivity of the fluid.
 
-# Description
-# Nusselt number is the ratio of convective to conductive heat transfer at
-# a boundary in a fluid. There is a characteristic length in
-# the formula. The characteristic length is the dimension
-# that defines the length scale of a physical system. A characteristic length
-# is usually the volume of a system divided by its surface: L = V / A,
-# where V is the volume of the body, and A is the cross-sectional area.
-# For example, it is used to calculate flow through circular and non-circular
-# tubes in order to examine flow conditions. D = 4 * A / p, where
-# D is characteristic diameter, A is the cross-sectional are, p is wetted perimeter.
-# Law: Nu = h * L / k, where
-# h is the heat transfer coefficient,
-# L is the characteristic length,
-# k is the thermal conductivity,
-# Nu is Nusselt number.
+**Links:**
 
+#. `Wikipedia <https://en.wikipedia.org/wiki/Nusselt_number#Definition>`__.
 
-heat_transfer_coefficient = Symbol(
-    "heat_transfer_coefficient", units.power / (units.area * units.temperature)
-)
-characteristic_length = Symbol("characteristic_length", units.length)
-thermal_conductivity = Symbol(
-    "thermal_conductivity", units.power / (units.length * units.temperature)
+..
+    TODO: rename file
+"""
+
+from sympy import Eq, solve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    convert_to_float,
+    symbols
 )
 
-nusselt_number = Symbol("nusselt_number", dimensionless)
+heat_transfer_coefficient = symbols.heat_transfer_coefficient
+"""
+:symbols:`heat_transfer_coefficient` of the flow.
+"""
 
-law = Eq(nusselt_number, heat_transfer_coefficient *
-         characteristic_length / thermal_conductivity)
+characteristic_length = symbols.characteristic_length
+"""
+:symbols:`characteristic_length` of the system.
+"""
 
+thermal_conductivity = symbols.thermal_conductivity
+"""
+:symbols:`thermal_conductivity` of the fluid.
+"""
 
-def print_law() -> str:
-    return print_expression(law)
+nusselt_number = symbols.nusselt_number
+"""
+:symbols:`nusselt_number`.
+"""
+
+law = Eq(nusselt_number, heat_transfer_coefficient * characteristic_length / thermal_conductivity)
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 
 @validate_input(
@@ -44,16 +57,12 @@ def print_law() -> str:
     thermal_conductivity_=thermal_conductivity,
 )
 @validate_output(nusselt_number)
-def calculate_nusselt_number(
-    heat_transfer_coefficient_: Quantity,
-    characteristic_length_: Quantity,
-    thermal_conductivity_: Quantity
-) -> float:
+def calculate_nusselt_number(heat_transfer_coefficient_: Quantity, characteristic_length_: Quantity,
+    thermal_conductivity_: Quantity) -> float:
     result_expr = solve(law, nusselt_number, dict=True)[0][nusselt_number]
     result_applied = result_expr.subs({
         heat_transfer_coefficient: heat_transfer_coefficient_,
         characteristic_length: characteristic_length_,
         thermal_conductivity: thermal_conductivity_
     })
-    result = Quantity(result_applied)
-    return float(convert_to(result, S.One).evalf())
+    return convert_to_float(result_applied)

@@ -1,34 +1,57 @@
-from sympy import (Eq, solve)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output)
+"""
+Elastic potential energy from displacement
+==========================================
 
-# Description
-## Spring accumulates energy while being deformated. This law is known as Hooke's law.
-## Law: E = k * x**2 / 2, where
-## E is potential energy of deformated spring
-## k is elastic koefficient
-## x is deformation
+Spring accumulates energy while being deformed. This law is known as the **Hooke's law**.
 
-# Conditions.
-## Deformation is elactic (reversible).
+**Conditions:**
 
-spring_energy = Symbol("spring_energy", units.energy)
-elastic_koefficient = Symbol("elastic_koefficient", units.force / units.length)
-deformation = Symbol("deformation", units.length)
+#. The deformation is elastic (reversible).
 
-law = Eq(spring_energy, elastic_koefficient * deformation**2 / 2)
+**Links:**
+
+#. `Wikipedia, first formula <https://en.wikipedia.org/wiki/Elastic_energy#>`__.
+
+..
+    TODO Move law to ./deformations/
+"""
+
+from sympy import Eq, solve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    symbols,
+)
+
+elastic_potential_energy = symbols.potential_energy
+"""
+The :symbols:`potential_energy` of the spring.
+"""
+
+stiffness = symbols.stiffness
+"""
+The spring's :symbols:`stiffness`, or spring constant.
+"""
+
+displacement = symbols.euclidean_distance
+"""
+The displacement of the spring, or the :symbols:`euclidean_distance` between the initial position
+and the rest position.
+"""
+
+law = Eq(elastic_potential_energy, stiffness * displacement**2 / 2)
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 
-def print_law() -> str:
-    return print_expression(law)
-
-
-@validate_input(elastic_koefficient_=elastic_koefficient, deformation_=deformation)
-@validate_output(spring_energy)
-def calculate_energy(elastic_koefficient_: Quantity, deformation_: Quantity) -> Quantity:
-    result_energy_expr = solve(law, spring_energy, dict=True)[0][spring_energy]
-    result_expr = result_energy_expr.subs({
-        elastic_koefficient: elastic_koefficient_,
-        deformation: deformation_
-    })
+@validate_input(stiffness_=stiffness, deformation_=displacement)
+@validate_output(elastic_potential_energy)
+def calculate_energy(stiffness_: Quantity, deformation_: Quantity) -> Quantity:
+    result_energy_expr = solve(law, elastic_potential_energy,
+        dict=True)[0][elastic_potential_energy]
+    result_expr = result_energy_expr.subs({stiffness: stiffness_, displacement: deformation_})
     return Quantity(result_expr)

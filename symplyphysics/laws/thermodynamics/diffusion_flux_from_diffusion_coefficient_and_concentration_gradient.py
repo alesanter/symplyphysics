@@ -1,34 +1,61 @@
-from sympy import (Eq, Derivative)
-from symplyphysics import (units, Function, Quantity, Symbol, print_expression, validate_input,
-    validate_output)
+"""
+Diffusion flux from diffusion coefficient and concentration gradient
+====================================================================
 
-# Description
-## Fick's first law relates the diffusive flux to the gradient of the concentration. It postulates that the flux goes from regions of high concentration to regions of low concentration,
-## with a magnitude that is proportional to the concentration gradient (spatial derivative), or in simplistic terms the concept that a solute will move from a region of high concentration
-## to a region of low concentration across a concentration gradient.
-##The sign "-" in Fick's law indicates that the directions of the diffusion flow and the gradient are opposite: the gas diffuses towards a lower concentration, and the gradient is directed towards a higher concentration.
+*Fick's first law* relates the diffusion flux to the gradient of the concentration.
+It postulates that the flux goes from regions of high concentration to regions of
+low concentration, with a magnitude that is proportional to the concentration gradient
+(spatial derivative), or, in simplistic terms, the concept that a solute will move from
+a region of high concentration to a region of low concentration across a concentration
+gradient. The minus sign in the law indicates that the directions of the diffusion
+flow and the gradient are opposite: the gas diffuses towards a lower concentration,
+and the gradient is directed towards a higher concentration.
 
-## Law: J = -D * dn / dx
-## Where:
-## J is the diffusion flux
-## D is the diffusion coefficient
-## n is the concentration, or amount of the substance per unit volume
-## x is position
+**Conditions:**
 
-## Conditions
-## Mixture is ideal
+#. The mixture is ideal.
 
-diffusion_flux = Function("diffusion_flux", units.amount_of_substance / (units.area * units.time))
-diffusion_coefficient = Symbol("diffusion_coefficient", units.area / units.time)
-concentration = Function("concentration", units.amount_of_substance / units.volume)
-position = Symbol("position", units.length)
+**Links:**
+
+#. `Wikipedia, first formula <https://en.wikipedia.org/wiki/Fick%27s_laws_of_diffusion#Fick's_first_law>`__.
+"""
+
+from sympy import Eq, Derivative
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    symbols,
+    clone_as_function,
+)
+
+position = symbols.position
+"""
+:symbols:`position` of particles.
+"""
+
+diffusion_flux = clone_as_function(symbols.diffusion_flux, [position])
+"""
+:symbols:`diffusion_flux` as a function of :attr:`~position`.
+"""
+
+diffusion_coefficient = symbols.diffusion_coefficient
+"""
+:symbols:`diffusion_coefficient`.
+"""
+
+concentration = clone_as_function(symbols.molar_concentration, [position])
+"""
+:symbols:`molar_concentration` of particles as a function of :attr:`~position`.
+"""
 
 law = Eq(diffusion_flux(position),
     -diffusion_coefficient * Derivative(concentration(position), position))
+"""
+:laws:symbol::
 
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(diffusion_coefficient_=diffusion_coefficient,

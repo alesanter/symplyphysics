@@ -1,70 +1,96 @@
-from sympy import (Eq, Expr, solve, symbols, S, simplify)
+"""
+Diffusion equation from neutron flux
+====================================
+
+The diffusion equation, based on Fick's law, provides an analytical solution of spatial
+neutron flux distribution in the multiplying system.
+
+**Links:**
+
+#. `NuclearPower, possible similar formula <https://www.nuclear-power.com/nuclear-power/reactor-physics/neutron-diffusion-theory/diffusion-equation/>`__.
+"""
+
+from sympy import Eq, Expr, solve, simplify
 from sympy.vector import Laplacian
 from symplyphysics import (
     SI,
     Function,
     units,
     Quantity,
-    Symbol,
-    print_expression,
-    dimensionless,
-    convert_to,
     validate_input,
     validate_output,
+    convert_to_float,
+    symbols,
+    clone_as_function,
+    clone_as_symbol,
 )
+from symplyphysics.core.dimensions import collect_expression_and_dimension
 
-# Description
-## The diffusion equation, based on Fick's law, provides an analytical solution of spatial neutron flux
-## distribution in the multiplying system.
+diffusion_coefficient = symbols.neutron_diffusion_coefficient
+"""
+:symbols:`neutron_diffusion_coefficient`.
+"""
 
-## Law: -D * Δ(Ф(x)) + Σa * Ф(x) = (1 / k) * v * Σf * Ф(x)
-## Where:
-## D - diffusion coefficient.
-##   See [diffusion coefficient](./neutron_diffusion_coefficient_from_scattering_cross_section.py) implementation.
-## Δ - Laplacian operator.
-## Ф(x) (neutron flux density) - number of neutrons crossing through some arbitrary cross-sectional unit area in all
-##   directions per unit time.
-## Σf - macroscopic fission cross-section of the fuel.
-##   See [macroscopic cross-section](./macroscopic_cross_section_from_free_mean_path.py) implementation.
-## Σa - macroscopic absorption cross-section of the fuel.
-## k - effective multiplication factor.
-##   See [effective multiplication factor](./effective_multiplication_factor.py)
-## v - average number of neutrons produced per fission.
-## x - coordinates for the neutron flux density.
+macroscopic_fission_cross_section = clone_as_symbol(symbols.macroscopic_cross_section,
+    display_symbol="Sigma_f",
+    display_latex="\\Sigma_text{f}")
+"""
+:symbols:`macroscopic_cross_section` of fission.
+"""
 
-# NOTE: Neutron flux can be understood as scalar field. It is a function of the point in 3D space that returns a
-# scalar value.
+macroscopic_absorption_cross_section = clone_as_symbol(symbols.macroscopic_cross_section,
+    display_symbol="Sigma_a",
+    display_latex="\\Sigma_\\text{a}")
+"""
+:symbols:`macroscopic_cross_section` of absorption.
+"""
 
-diffusion_coefficient = Symbol("diffusion_coefficient", units.length)
-macroscopic_absorption_cross_section = Symbol("macroscopic_absorption_cross_section",
-    1 / units.length)
-macroscopic_fission_cross_section = Symbol("macroscopic_fission_cross_section", 1 / units.length)
-effective_multiplication_factor = Symbol("effective_multiplication_factor", dimensionless)
-neutrons_per_fission = Symbol("neutrons_per_fission", dimensionless)
+effective_multiplication_factor = symbols.effective_multiplication_factor
+"""
+:symbols:`effective_multiplication_factor`.
+"""
+
+neutrons_per_fission = clone_as_symbol(symbols.particle_count,
+    display_symbol="nu",
+    display_latex="\\nu")
 
 # Position is a free variable of a function - do not specify its dimension
-flux_position = symbols("flux_position")
-neutron_flux = Function("neutron_flux", 1 / units.area / units.time)
-neutron_flux_laplacian = Function("neutron_flux_laplacian", 1 / units.length**4 / units.time)
+position = symbols.position
+"""
+:symbols:`position`.
+"""
 
-neutron_flux_laplacian_definition = Eq(neutron_flux_laplacian(flux_position),
-    Laplacian(neutron_flux(flux_position)),
+neutron_flux = clone_as_function(symbols.neutron_flux, [position])
+"""
+:symbols:`neutron_flux` as a function of :attr:`~position`.
+"""
+
+neutron_flux_laplacian = Function("Laplace(Phi)", [position],
+    1 / (units.length**4 * units.time),
+    display_latex="\\nabla^{2} \\Phi")
+"""
+Laplacian of the :attr:`~neutron_flux` as a function of :attr:`~position`.
+"""
+
+neutron_flux_laplacian_definition = Eq(neutron_flux_laplacian(position),
+    Laplacian(neutron_flux(position)),
     evaluate=False)
 
 law = Eq(
-    -1 * diffusion_coefficient * neutron_flux_laplacian(flux_position) +
-    macroscopic_absorption_cross_section * neutron_flux(flux_position),
+    -1 * diffusion_coefficient * neutron_flux_laplacian(position) +
+    macroscopic_absorption_cross_section * neutron_flux(position),
     (1 / effective_multiplication_factor) * neutrons_per_fission *
-    macroscopic_fission_cross_section * neutron_flux(flux_position))
+    macroscopic_fission_cross_section * neutron_flux(position))
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 # As Laplacian is a second derivative over space coordinates (x, y, z), resulting dimension should be
 # original dimension / units.length**2
 assert SI.get_dimension_system().equivalent_dims(neutron_flux_laplacian.dimension,
     neutron_flux.dimension / units.length**2)
-
-
-def print_law() -> str:
-    return print_expression(law)
 
 
 # neutron_flux_function_ should be a function on CoordSys3D
@@ -73,9 +99,9 @@ def apply_neutron_flux_function(neutron_flux_function_: Expr) -> Expr:
     # Laplacian cannot properly calculate resulting dimension.
     unit_length = Quantity(1, dimension=units.length)
     neutron_flux_laplacian_eval = neutron_flux_laplacian_definition.rhs.subs(
-        neutron_flux(flux_position), neutron_flux_function_).doit() / unit_length**2
-    applied_law = law.subs(neutron_flux_laplacian(flux_position), neutron_flux_laplacian_eval)
-    applied_law = applied_law.subs(neutron_flux(flux_position), neutron_flux_function_)
+        neutron_flux(position), neutron_flux_function_).doit() / unit_length**2
+    applied_law = law.subs(neutron_flux_laplacian(position), neutron_flux_laplacian_eval)
+    applied_law = applied_law.subs(neutron_flux(position), neutron_flux_function_)
     return simplify(applied_law)
 
 
@@ -90,10 +116,8 @@ def calculate_multiplication_factor(neutron_flux_function_: Expr, neutrons_per_f
     macroscopic_fission_cross_section_: Quantity, macroscopic_absorption_cross_section_: Quantity,
     diffusion_coefficient_: Quantity) -> float:
 
-    # this is like validate_input but does not require no free symbols
-    neutron_flux_quantity = Quantity(neutron_flux_function_)
-    assert SI.get_dimension_system().equivalent_dims(neutron_flux_quantity.dimension,
-        neutron_flux.dimension)
+    (_, dimension) = collect_expression_and_dimension(neutron_flux_function_)
+    assert SI.get_dimension_system().equivalent_dims(dimension, neutron_flux.dimension)
 
     applied_law = apply_neutron_flux_function(neutron_flux_function_)
     result_expr = applied_law.subs({
@@ -104,5 +128,4 @@ def calculate_multiplication_factor(neutron_flux_function_: Expr, neutrons_per_f
     })
     result_factor_expr = solve(result_expr, effective_multiplication_factor,
         dict=True)[0][effective_multiplication_factor]
-    result_factor = Quantity(result_factor_expr)
-    return float(convert_to(result_factor, S.One).evalf())
+    return convert_to_float(result_factor_expr)

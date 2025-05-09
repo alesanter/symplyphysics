@@ -2,7 +2,8 @@ from collections import namedtuple
 from pytest import fixture, raises
 from sympy import atan, pi, sqrt, symbols, sin, cos
 from sympy.vector import Vector as SympyVector, express
-from symplyphysics import (Quantity, dimensionless, units, QuantityVector, Vector, errors)
+from symplyphysics import (Quantity, dimensionless, units, QuantityVector, Vector, errors,
+    assert_equal)
 from symplyphysics.core.coordinate_systems.coordinate_systems import CoordinateSystem, coordinates_rotate, coordinates_transform
 
 Args = namedtuple("Args", ["C"])
@@ -259,6 +260,46 @@ def test_invalid_dimension_quantity_vector() -> None:
         QuantityVector([q1, q2])
 
 
+def test_coordinate_system_quantity_vector() -> None:
+    C1 = CoordinateSystem(CoordinateSystem.System.CYLINDRICAL)
+    vector = QuantityVector([
+        Quantity(1.0 * units.meter / units.second**2),
+        Quantity(1.0 * units.radian),
+        Quantity(-1.0 * units.meter / units.second**2),
+    ], C1)
+    assert vector.coordinate_system.coord_system_type == CoordinateSystem.System.CYLINDRICAL
+    C2 = CoordinateSystem(CoordinateSystem.System.SPHERICAL)
+    vector = QuantityVector([
+        Quantity(1.0 * units.meter / units.second**2),
+        Quantity(1.0 * units.radian),
+        Quantity(1.0 * units.radian),
+    ], C2)
+    assert vector.coordinate_system.coord_system_type == CoordinateSystem.System.SPHERICAL
+
+
+def test_invalid_coordinate_system_quantity_vector() -> None:
+    C1 = CoordinateSystem(CoordinateSystem.System.CYLINDRICAL)
+    with raises(ValueError):
+        QuantityVector([
+            Quantity(1.0 * units.meter / units.second**2),
+            Quantity(1.0 * units.radian),
+            Quantity(-1.0 * units.meter),
+        ], C1)
+    with raises(ValueError):
+        QuantityVector([
+            Quantity(1.0 * units.meter / units.second**2),
+            Quantity(1.0 * units.meter / units.second**2),
+            Quantity(-1.0 * units.meter / units.second**2),
+        ], C1)
+    C2 = CoordinateSystem(CoordinateSystem.System.SPHERICAL)
+    with raises(ValueError):
+        QuantityVector([
+            Quantity(1.0 * units.meter / units.second**2),
+            Quantity(1.0 * units.meter / units.second**2),
+            Quantity(1.0 * units.radian),
+        ], C2)
+
+
 # Test QuantityVector.components()
 
 
@@ -272,95 +313,19 @@ def test_basic_to_quantities(test_args: Args) -> None:
         vector.components[1].dimension] == [q1.dimension, q2.dimension]
 
 
-# Test QuantityVector.from_sympy_vector()
+def test_from_base_vector() -> None:
+    vector = Vector([1, 2, 3])
+    quantity_vector = QuantityVector.from_base_vector(vector)
+    for component, quantity in zip(vector.components, quantity_vector.components):
+        assert_equal(quantity, component)
 
-
-def test_basic_quantities_from_sympy_vector(test_args: Args) -> None:
-    vector = QuantityVector.from_sympy_vector(
-        test_args.C.coord_system.i + 2 * test_args.C.coord_system.j, test_args.C)
-    assert [vector.components[0].scale_factor, vector.components[1].scale_factor] == [1, 2]
-    assert vector.dimension == dimensionless
-
-
-def test_dimensions_manual_quantities_from_sympy_vector(test_args: Args) -> None:
-    vector = QuantityVector.from_sympy_vector(test_args.C.coord_system.i +
-        2 * test_args.C.coord_system.j,
-        test_args.C,
-        dimension=units.length)
-    assert [vector.components[0].scale_factor, vector.components[1].scale_factor] == [1, 2]
-    assert vector.dimension == units.length
-
-
-def test_dimensions_auto_quantities_from_sympy_vector(test_args: Args) -> None:
-    vector = QuantityVector.from_sympy_vector(
-        test_args.C.coord_system.i * units.meter + 2 * test_args.C.coord_system.j * units.meter,
-        test_args.C)
-    assert [vector.components[0].scale_factor, vector.components[1].scale_factor] == [1, 2]
-    assert vector.dimension == units.length
-
-
-def test_invalid_dimension_quantities_from_sympy_vector(test_args: Args) -> None:
-    with raises(errors.UnitsError):
-        QuantityVector.from_sympy_vector(
-            test_args.C.coord_system.i * units.meter +
-            2 * test_args.C.coord_system.j * units.second, test_args.C)
-
-
-# Test QuantityVector.rebase()
-
-
-def test_basic_quantities_rebase(test_args: Args) -> None:
-    q1 = Quantity(1)
-    q2 = Quantity(2)
-    vector = QuantityVector([q1 * test_args.C.coord_system.x, q2 * test_args.C.coord_system.y],
-        test_args.C)
-    # B is located at [1, 2] origin instead of [0, 0] of test_args.C
-    Bi = test_args.C.coord_system.locate_new(
-        "B", test_args.C.coord_system.i + 2 * test_args.C.coord_system.j)
-    B = CoordinateSystem(test_args.C.coord_system_type, Bi)
-    vector_rebased = vector.rebase(B)
-    assert vector_rebased.coordinate_system == B
-    # Original field is not changed
-    assert vector.coordinate_system == test_args.C
-    # Quantities are not scalar values - they cannot be properly rebased
-    assert [vector_rebased.components[0].scale_factor, vector_rebased.components[1].scale_factor
-           ] == [test_args.C.coord_system.x, 2 * test_args.C.coord_system.y]
-
-
-def test_rotate_quantities_rebase(test_args: Args) -> None:
-    q1 = Quantity(1)
-    q2 = Quantity(2)
-    vector = QuantityVector([q1, q2], test_args.C)
-    point = [1, 2]
-    p1 = test_args.C.coord_system.origin.locate_new(
-        "p1", point[0] * test_args.C.coord_system.i + point[1] * test_args.C.coord_system.j)
-    p1_coordinates = p1.express_coordinates(test_args.C.coord_system)
-    assert p1_coordinates[0] == point[0]
-    assert p1_coordinates[1] == point[1]
-
-    B = coordinates_rotate(test_args.C, pi / 4, test_args.C.coord_system.k)
-    p1_coordinates_in_b = p1.express_coordinates(B.coord_system)
-    assert p1_coordinates_in_b[0] != point[0]
-
-    vector_rebased = vector.rebase(B)
-    assert vector_rebased.coordinate_system == B
-    assert [vector_rebased.components[0].scale_factor,
-        vector_rebased.components[1].scale_factor] == [3 * sqrt(2) / 2,
-        sqrt(2) / 2]
-    assert [p1_coordinates_in_b[0], p1_coordinates_in_b[1]] == [3 * sqrt(2) / 2, sqrt(2) / 2]
-
-
-def test_spherical_quantities_rebase(test_args: Args) -> None:
-    q1 = Quantity(1)
-    q2 = Quantity(2)
-    vector = QuantityVector([q1, q2], test_args.C)
-    B = coordinates_transform(test_args.C, CoordinateSystem.System.SPHERICAL)
-    # vector should have r = sqrt(5) in polar coordinates
-    # vector is in XY-plane, so phi angle should be pi/2
-    # theta angle is atan(2/1)
-    vector_rebased = vector.rebase(B)
-    assert vector_rebased.coordinate_system == B
-    assert [
-        vector_rebased.components[0].scale_factor, vector_rebased.components[1].scale_factor,
-        vector_rebased.components[2].scale_factor
-    ] == [sqrt(5), atan(2), pi / 2]
+    x, y, z = symbols("x:z")
+    symbol_vector = Vector([x, y, z])
+    subs = {
+        x: Quantity(1.0),
+        y: Quantity(2.0),
+        z: Quantity(3.0),
+    }
+    symbol_quantity_vector = QuantityVector.from_base_vector(symbol_vector, subs=subs)
+    for value, quantity in zip(subs.values(), symbol_quantity_vector.components):
+        assert_equal(quantity, value)

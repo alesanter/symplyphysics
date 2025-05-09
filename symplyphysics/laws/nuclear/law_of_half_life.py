@@ -1,44 +1,64 @@
-from sympy import (Eq, solve, S)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output, convert_to, dimensionless)
+"""
+Solution to the exponential decay equation
+==========================================
 
-# Description
-## Half-life is the time required for a quantity (of substance) to reduce to half of its initial value.
-## The term is commonly used in nuclear physics to describe how quickly unstable atoms undergo radioactive
-## decay or how long stable atoms survive. The term is also used more generally to characterize any type
-## of exponential (or, rarely, non-exponential) decay.
+The solution to the exponential decay equation is the product of the initial quantity
+and the the ratio of the current time to the half-life of the quantity, raised to the
+power of 2. In other words, for every half-life that passes, the quantity decays by a
+factor of 2.
 
-## Law is: N = N0 * 2^(-t / T), where
-## N - number of cores after a period of time,
-## N0 - initial number of cores,
-## t - an arbitrary time interval,
-## T - half-life of the nuclei.
+**Links:**
 
-number_of_cores = Symbol("number_of_cores", dimensionless)
+#. `Wikipedia <https://en.wikipedia.org/wiki/Exponential_decay#>`__.
+"""
 
-number_of_cores_initial = Symbol("number_of_cores_initial", dimensionless)
-half_life = Symbol("half_life", units.time)
-decay_time = Symbol("decay_time", units.time)
+from sympy import Eq, solve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    convert_to_float,
+    symbols,
+    clone_as_symbol,
+)
 
-law = Eq(number_of_cores, number_of_cores_initial * 2**(-decay_time / half_life))
+final_quantity = symbols.any_quantity
+"""
+Quantity that still remains and has not decayed after :attr:`~time` :math:`t`.
+"""
+
+initial_quantity = clone_as_symbol(symbols.any_quantity, subscript="0")
+"""
+Initial quantity that will decay.
+"""
+
+half_life = symbols.half_life
+"""
+:symbols:`half_life` of the decaying quantity.
+"""
+
+time = symbols.time
+"""
+:symbols:`time`.
+"""
+
+law = Eq(final_quantity, initial_quantity * 2**(-1 * time / half_life))
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 
-def print_law() -> str:
-    return print_expression(law)
-
-
-@validate_input(number_of_cores_initial_=number_of_cores_initial,
-    half_life_=half_life,
-    decay_time_=decay_time)
-@validate_output(number_of_cores)
+@validate_input(half_life_=half_life,
+    decay_time_=time)
 def calculate_number_of_cores(number_of_cores_initial_: int, half_life_: Quantity,
     decay_time_: Quantity) -> int:
     if number_of_cores_initial_ < 0:
         raise ValueError("Number of cores cannot be negative")
-    result_expr = solve(law, number_of_cores, dict=True)[0][number_of_cores]
+    result_expr = solve(law, final_quantity, dict=True)[0][final_quantity]
     result_expr = result_expr.subs({
-        number_of_cores_initial: number_of_cores_initial_,
+        initial_quantity: number_of_cores_initial_,
         half_life: half_life_,
-        decay_time: decay_time_
+        time: decay_time_
     })
-    return int(convert_to(Quantity(result_expr), S.One).evalf())
+    return int(convert_to_float(result_expr))

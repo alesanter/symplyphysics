@@ -25,16 +25,21 @@ plots = ["matplotlib"]
 dev = [
   "pytest",
   "mypy",
-  "pylint",
+  "pylint>=3.3.0",
+  "Sphinx",
+  "sphinx-sitemap",
 ]
 
-[tool.setuptools.packages]
-find = {}  # Scan the project directory with the default parameters
+[tool.setuptools.packages.find]
+exclude = ["build*"]
 
 [tool.pytest.ini_options]
 testpaths = [
     "test",
 ]
+
+[tool.pylint.master]
+fail-under = "9.8"
 
 [tool.pylint.basic]
 good-names-rgxs = ["^[_a-z][_a-z0-9]?$,^[_A-Z][_a-z0-9]?$"]
@@ -47,11 +52,16 @@ disable = [
   "line-too-long",
   "similarities",
   "too-many-locals",
+  "fixme"
 ]
 
 [tool.mypy]
 disallow_untyped_defs = true
-exclude = ["build"]
+exclude = ["build*"]
+
+[[tool.mypy.overrides]]
+module = "sympy.*"
+ignore_missing_imports = true
 
 [tool.yapf]
 based_on_style = "google"

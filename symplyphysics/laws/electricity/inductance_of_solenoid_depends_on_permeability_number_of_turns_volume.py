@@ -1,43 +1,66 @@
-from sympy import (Eq, solve)
-from sympy.physics.units import magnetic_constant
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output, dimensionless)
+"""
+Inductance via number of turns and coil volume
+==============================================
 
-# Description
-## A solenoid is a cylindrical coil consisting of a large number of turns of wire forming a helical line.
-## Inductance of solenoid depends on core material, number of turns per unit length, and volume of core.
+The inductance of a coil (a solenoid) can be expressed as a function of the material's
+permeability, the number of turns in the coil per unit length and its volume.
 
-## Law is: L = mu * mu0 * n^2 * V, where
-## L - inductance,
-## mu - relative permeability of the core inside of a solenoid,
-## mu0 - magnetic constant,
-## n - number of turns per unit length,
-## V - volume of solenoid.
+**Links:**
 
-inductance = Symbol("inductance", units.inductance)
+#. `Physics LibreTexts, formula 14.3.12 <https://phys.libretexts.org/Bookshelves/University_Physics/University_Physics_(OpenStax)/University_Physics_II_-_Thermodynamics_Electricity_and_Magnetism_(OpenStax)/14%3A_Inductance/14.03%3A_Self-Inductance_and_Inductors>`__.
 
-relative_permeability = Symbol("relative_permeability", dimensionless)
-number_of_turns_per_length = Symbol("number_of_turns", 1 / units.length)
-volume = Symbol("volume", units.volume)
+..
+    TODO rename file
+"""
 
-law = Eq(inductance,
-    relative_permeability * magnetic_constant * number_of_turns_per_length**2 * volume)
+from sympy import Eq, solve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    symbols,
+    Symbol,
+    units,
+)
+
+inductance = symbols.inductance
+"""
+:symbols:`inductance` of the coil.
+"""
+
+absolute_permeability = symbols.absolute_permeability
+"""
+:symbols:`absolute_permeability` of the inside of the coil.
+"""
+
+specific_coil_turn_count = Symbol("n", 1 / units.length)
+"""
+Number of turns in the coil per unit length.
+"""
+
+volume = symbols.volume
+"""
+:symbols:`volume` of the coil.
+"""
+
+law = Eq(inductance, absolute_permeability * specific_coil_turn_count**2 * volume)
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 
-def print_law() -> str:
-    return print_expression(law)
-
-
-@validate_input(relative_permeability_=relative_permeability,
-    number_of_turns_per_length_=number_of_turns_per_length,
+@validate_input(absolute_permeability_=absolute_permeability,
+    turn_count_=specific_coil_turn_count,
     volume_=volume)
 @validate_output(inductance)
-def calculate_inductance(relative_permeability_: float, number_of_turns_per_length_: Quantity,
+def calculate_inductance(absolute_permeability_: Quantity, turn_count_: Quantity,
     volume_: Quantity) -> Quantity:
     result_inductance_expr = solve(law, inductance, dict=True)[0][inductance]
     result_expr = result_inductance_expr.subs({
-        relative_permeability: relative_permeability_,
-        number_of_turns_per_length: number_of_turns_per_length_,
+        absolute_permeability: absolute_permeability_,
+        specific_coil_turn_count: turn_count_,
         volume: volume_
     })
     return Quantity(result_expr)

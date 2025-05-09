@@ -1,42 +1,65 @@
-from sympy import Eq, solve, sqrt, S
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output, dimensionless, convert_to)
+"""
+Froude number formula
+=====================
 
-# Description
-# Froude number characterizes the ratio between the force of inertia and
-# the external force, in the field of which the motion occurs, acting on
-# an elementary volume of liquid or gas. There is a characteristic length in
-# the formula. The characteristic length is the dimension
-# that defines the length scale of a physical system. A characteristic length
-# is usually the volume of a system divided by its surface: L = V / A,
-# where V is the volume of the body, and A is the cross-sectional area.
-# For example, it is used to calculate flow through circular and non-circular
-# tubes in order to examine flow conditions. D = 4 * A / p, where
-# D is characteristic diameter, A is the cross-sectional are, p is wetted perimeter.
-# Law: Fr = u / sqrt(g * L), where
-# u is velocity,
-# g is acceleration due to gravity,
-# L is a characteristic length,
-# Fr is Froude number.
+The Froude number is based on the speed-to-length ratio as defined by Froude. It has
+some analogy with the :ref:`Mach number <Mach number is flow speed over speed of sound>`,
+but it is not frequently used in the field of theoretical fluid dynamics. It relates the
+inertia forces in a system to the effects due to gravity, in other words, it is related
+to the tendency of the fluid to make `gravity waves <https://en.wikipedia.org/wiki/Gravity_wave>`__.
 
-velocity = Symbol("velocity", units.velocity)
-characteristic_length = Symbol("characteristic_length", units.length)
-froude_number = Symbol("froude_number", dimensionless)
+**Notation:**
 
-law = Eq(froude_number, velocity / sqrt(units.acceleration_due_to_gravity * characteristic_length))
+#. :quantity_notation:`acceleration_due_to_gravity`.
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Froude_number>`__.
+#. `ScienceDirect <https://www.sciencedirect.com/topics/engineering/froude-number>`__.
+
+..
+    TODO: rename file
+"""
+
+from sympy import Eq, solve, sqrt
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    convert_to_float,
+    symbols,
+    quantities,
+)
+
+flow_speed = symbols.flow_speed
+"""
+:symbols:`flow_speed`.
+"""
+
+characteristic_length = symbols.characteristic_length
+"""
+:symbols:`characteristic_length` of the fluid container.
+"""
+
+froude_number = symbols.froude_number
+"""
+:symbols:`froude_number`.
+"""
+
+law = Eq(froude_number, flow_speed / sqrt(quantities.acceleration_due_to_gravity * characteristic_length))
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 
-def print_law() -> str:
-    return print_expression(law)
-
-
-@validate_input(velocity_=velocity, characteristic_length_=characteristic_length)
+@validate_input(velocity_=flow_speed, characteristic_length_=characteristic_length)
 @validate_output(froude_number)
 def calculate_froude_number(velocity_: Quantity, characteristic_length_: Quantity) -> float:
     result_expr = solve(law, froude_number, dict=True)[0][froude_number]
     result_applied = result_expr.subs({
-        velocity: velocity_,
+        flow_speed: velocity_,
         characteristic_length: characteristic_length_
     })
-    result = Quantity(result_applied)
-    return float(convert_to(result, S.One).evalf())
+    return convert_to_float(result_applied)

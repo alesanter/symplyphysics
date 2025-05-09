@@ -1,23 +1,92 @@
-from symplyphysics import Symbol, units, validate_input, validate_output, Quantity, scale_vector, list_of_quantities
-from symplyphysics.core.vectors.vectors import QuantityVector, Vector
+"""
+Electric field is force over test charge (Vector)
+=================================================
 
-# Description
-## The electric field E is defined at any point in terms of the electrostatic force F
-## that would be exerted on a test charge q0 placed there.
+Electric field at a point in space can be found by placing there a test charge and measuring
+the electrostatic force that is applied to it.
 
-# Definition: E = F / q0
-## E - electric field vector
-## F - electrostatic force vector
-## q0 - test charge
+**Links:**
 
-test_charge = Symbol("test_charge", units.charge)
+#. `Wikipedia, last formula in paragraph <https://en.wikipedia.org/wiki/Electric_field#Electrostatics>`__.
+"""
+
+from symplyphysics import (
+    Quantity,
+    QuantityVector,
+    scale_vector,
+    units,
+    validate_input,
+    validate_output,
+    Vector,
+    symbols,
+    clone_as_symbol,
+)
+
+test_charge = clone_as_symbol(symbols.charge, subscript="0")
+"""
+Value of the test :symbols:`charge`.
+"""
 
 
 def electric_field_law(electrostatic_force_: Vector) -> Vector:
+    r"""
+    Electric field via electrostatic force.
+
+    Law:
+        :code:`E = F / q0`
+
+    Latex:
+        .. math::
+            \vec E = \frac{\vec F}{q_0}
+
+    :param electrostatic\_force\_: vector of electrostatic force
+
+        Symbol: :code:`F`
+
+        Latex: :math:`\vec F`
+
+        Dimension: *force*
+
+    :return: vector of electric field
+
+        Symbol: :code:`E`
+
+        Latex: :math:`\vec E`
+
+        Dimension: *force* / *charge*
+    """
+
     return scale_vector(1 / test_charge, electrostatic_force_)
 
 
 def electrostatic_force_law(electric_field_: Vector) -> Vector:
+    r"""
+    Electrostatic force via electric field.
+
+    Law:
+        :code:`F = q0 * E`
+
+    Latex:
+        .. math::
+            \vec F = q_0 \vec E
+
+    :param electric\_field\_: vector of electric field
+
+        Symbol: :code:`E`
+
+        Latex: :math:`\vec E`
+
+        Dimension: *force* / *charge*
+
+    :return: vector of electrostatic force
+
+        Symbol: :code:`F`
+
+        Latex: :math:`\vec F`
+
+        Dimension: *force*
+    """
+
     return scale_vector(test_charge, electric_field_)
 
 
@@ -25,16 +94,13 @@ def electrostatic_force_law(electric_field_: Vector) -> Vector:
 @validate_output(units.force / units.charge)
 def calculate_electric_field(electrostatic_force_: QuantityVector,
     test_charge_: Quantity) -> QuantityVector:
-    result_electric_field = electric_field_law(electrostatic_force_)
-    electric_field_components = list_of_quantities(result_electric_field.components,
-        {test_charge: test_charge_})
-    return QuantityVector(electric_field_components, electrostatic_force_.coordinate_system)
+    result_vector = electric_field_law(electrostatic_force_.to_base_vector())
+    return QuantityVector.from_base_vector(result_vector, subs={test_charge: test_charge_})
 
 
 @validate_input(electric_field_=units.force / units.charge, test_charge_=test_charge)
 @validate_output(units.force)
 def calculate_electrostatic_force(electric_field_: QuantityVector,
     test_charge_: Quantity) -> QuantityVector:
-    result_force = electrostatic_force_law(electric_field_)
-    force_components = list_of_quantities(result_force.components, {test_charge: test_charge_})
-    return QuantityVector(force_components, electric_field_.coordinate_system)
+    result_vector = electrostatic_force_law(electric_field_.to_base_vector())
+    return QuantityVector.from_base_vector(result_vector, subs={test_charge: test_charge_})

@@ -1,36 +1,62 @@
+"""
+Optical distance difference from optical distances
+==================================================
+
+The optical difference in the course of two rays is the difference
+in the optical distances traversed by each of the rays
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Optical_path_length#Optical_path_difference>`__.
+
+..
+    TODO elaborate on optical distance
+"""
+
 from sympy import Eq, solve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    symbols,
+    clone_as_symbol,
+)
 
-from symplyphysics import Symbol, units, print_expression, Quantity, \
-    validate_input, validate_output
+first_optical_distance = clone_as_symbol(symbols.optical_distance, subscript="1")
+"""
+:symbols:`optical_distance` of first wave.
+"""
 
-# Description
-## The optical difference in the course of two rays is the difference
-## in the optical distances traversed by each of the rays
+second_optical_distance = clone_as_symbol(symbols.optical_distance, subscript="2")
+"""
+:symbols:`optical_distance` of second wave.
+"""
 
-# Law: delta = L2 - L1
-# Where:
-# L1 - optical distance for 1st wave
-# L2 - optical distance for 2nd wave
+optical_difference_distance = clone_as_symbol(
+    symbols.optical_distance,
+    display_symbol="Delta(Lambda)",
+    display_latex="\\Delta \\Lambda",
+)
+"""
+:symbols:`optical_distance` difference between waves.
+"""
 
-optical_distance1 = Symbol("optical_distance1", units.length)
-optical_distance2 = Symbol("optical_distance2", units.length)
-optical_difference_distance = Symbol("optical_difference_distance", units.length)
+law = Eq(optical_difference_distance, second_optical_distance - first_optical_distance)
+"""
+:laws:symbol::
 
-law = Eq(optical_difference_distance, optical_distance2 - optical_distance1)
-
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
-@validate_input(optical_distance1_=optical_distance1, optical_distance2_=optical_distance2)
+@validate_input(optical_distance1_=first_optical_distance,
+    optical_distance2_=second_optical_distance)
 @validate_output(optical_difference_distance)
 def calculate_optical_difference_distance(optical_distance1_: Quantity,
     optical_distance2_: Quantity) -> Quantity:
     solved = solve(law, optical_difference_distance, dict=True)[0][optical_difference_distance]
     result_expr = solved.subs({
-        optical_distance1: optical_distance1_,
-        optical_distance2: optical_distance2_
+        first_optical_distance: optical_distance1_,
+        second_optical_distance: optical_distance2_
     })
-    result = Quantity(result_expr)
-    return result
+    return Quantity(result_expr)

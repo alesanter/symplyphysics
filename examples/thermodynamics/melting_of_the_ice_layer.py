@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
-from sympy import solve, Symbol, Eq
-from symplyphysics import print_expression, Quantity, prefixes, units, convert_to
+from sympy import Idx, solve, Symbol, Eq
+from symplyphysics import print_expression, Quantity, prefixes, units, convert_to, global_index
 from symplyphysics.core.symbols.celsius import to_kelvin_quantity, Celsius
-from symplyphysics.laws.thermodynamics import thermal_energy_from_mass_and_temperature as energy_heating_law
-from symplyphysics.laws.thermodynamics import energy_to_melt_from_mass as energy_melting_law
+from symplyphysics.laws.thermodynamics import (
+    heat_is_heat_capacity_times_temperature_change as thermal_energy_law,
+    latent_heat_of_fusion_via_mass as energy_melting_law,
+    total_energy_transfer_is_zero_in_isolated_system as thermodinamics_law_1,
+)
+from symplyphysics.laws.quantities import quantity_is_specific_quantity_times_mass as specific_qty_law
 from symplyphysics.definitions import density_from_mass_volume as density_law
-from symplyphysics.laws.thermodynamics import sum_of_heat_transfer_is_zero as thermodinamics_law_1
 
 # The 4.2 cm thick ice layer has a temperature of 0 °C.
 # What is the minimum thickness of the water layer at a temperature of 306 K
@@ -47,20 +50,26 @@ density_of_water_equation = density_law.definition.subs({
 mass_of_water = solve(density_of_water_equation, density_law.mass, dict=True)[0][density_law.mass]
 
 energy_for_melting_ice_value = energy_melting_law.law.subs({
-    energy_melting_law.mass_of_matter: mass_of_ice,
-    energy_melting_law.specific_heat_melting: specific_heat_melting_of_ice
-}).rhs
-energy_from_cooling_water_value = energy_heating_law.law.subs({
-    energy_heating_law.body_mass: mass_of_water,
-    energy_heating_law.specific_heat_capacity: specific_heat_heating_of_water,
-    energy_heating_law.temperature_origin: temperature_of_water,
-    energy_heating_law.temperature_end: temperature_of_ice
+    energy_melting_law.mass: mass_of_ice,
+    energy_melting_law.specific_heat_of_fusion: specific_heat_melting_of_ice
 }).rhs
 
-heat_balance_equation = thermodinamics_law_1.law.subs({
-    thermodinamics_law_1.amounts_energy:
-    (energy_for_melting_ice_value, energy_from_cooling_water_value)
-}).doit()
+water_heat_capacity = specific_qty_law.law.rhs.subs({
+    specific_qty_law.specific_quantity: specific_heat_heating_of_water,
+    specific_qty_law.mass: mass_of_water,
+})
+
+energy_from_cooling_water_value = thermal_energy_law.law.subs({
+    thermal_energy_law.heat_capacity: water_heat_capacity,
+    thermal_energy_law.temperature_change: temperature_of_ice - temperature_of_water,
+}).rhs
+
+local_index_ = Idx("local_index_", (1, 2))
+thermodinamics_law_1_two_energies = thermodinamics_law_1.law.subs(global_index, local_index_).doit()
+heat_balance_equation = thermodinamics_law_1_two_energies.subs({
+    thermodinamics_law_1.energy[1]: energy_for_melting_ice_value,
+    thermodinamics_law_1.energy[2]: energy_from_cooling_water_value,
+})
 
 print(print_expression(heat_balance_equation))
 
@@ -78,4 +87,5 @@ height_of_water_value = height_of_water_solve.subs({
     specific_heat_heating_of_water: Quantity(4200 * units.joules / (units.kilogram * units.kelvin)),
     specific_heat_melting_of_ice: Quantity(330 * prefixes.kilo * units.joules / units.kilogram)
 })
-print(f"Need height of water is: {convert_to(Quantity(height_of_water_value), units.meters)}")
+print(
+    f"Need height of water is: {convert_to(Quantity(height_of_water_value), units.meters)} meters")

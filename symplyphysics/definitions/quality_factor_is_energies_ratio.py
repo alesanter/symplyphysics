@@ -1,38 +1,58 @@
-from sympy import (Eq, solve)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output, dimensionless)
+"""
+Quality factor is ratio of energies
+===================================
 
-# Description
-## Quality factor is the property of oscillatiing system. It shows the ratio between amount of energy stored in system and power losses.
+**Quality factor** is a property of an oscillating system defined as the ratio between the amount of
+energy stored in system and the power losses.
 
-# Definition: Q = w * W / P.
+..
+    TODO same law in `dynamics/damped_oscillations`, remove this law?
+"""
 
-# Where:
-## Q is quality factor,
-## w is resonant circular frequency,
-## W is energy stored in system,
-## P is dissipated power.
+from sympy import Eq, solve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    symbols,
+)
 
-quality_factor = Symbol("quality_factor", dimensionless)
-resonant_frequency = Symbol("resonant_frequency", units.frequency)
-stored_energy = Symbol("stored_energy", units.energy)
-dissipated_power = Symbol("dissipated_power", units.power)
+quality_factor = symbols.quality_factor
+"""
+:symbols:`quality_factor` of the oscillator.
+"""
 
-definition = Eq(quality_factor, resonant_frequency * stored_energy / dissipated_power)
+resonant_angular_frequency = symbols.angular_frequency
+"""
+Resonant :symbols:`angular_frequency` of the oscillator.
+"""
 
-definition_units_SI = dimensionless
+stored_energy = symbols.energy
+"""
+:symbols:`energy` stored in the oscillator.
+"""
+
+dissipated_power = symbols.power
+"""
+:symbols:`power` dissipated from the oscillator.
+"""
+
+definition = Eq(quality_factor, resonant_angular_frequency * stored_energy / dissipated_power)
+"""
+:laws:symbol::
+
+:laws:latex::
+"""
 
 
-def print_law() -> str:
-    return print_expression(definition)
-
-
-@validate_input(frequency_=resonant_frequency, energy_=stored_energy, power_=dissipated_power)
+@validate_input(frequency_=resonant_angular_frequency,
+    energy_=stored_energy,
+    power_=dissipated_power)
 @validate_output(quality_factor)
 def calculate_quality_factor(frequency_: Quantity, energy_: Quantity, power_: Quantity) -> Quantity:
     result_factor_expr = solve(definition, quality_factor, dict=True)[0][quality_factor]
     result_expr = result_factor_expr.subs({
-        resonant_frequency: frequency_,
+        resonant_angular_frequency: frequency_,
         stored_energy: energy_,
         dissipated_power: power_
     })

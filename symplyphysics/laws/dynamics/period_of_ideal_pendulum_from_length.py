@@ -1,71 +1,91 @@
-from sympy import (Derivative, Eq, Function as SymFunction, diff, sin, solve, pi, sqrt, symbols)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output)
+"""
+Period of ideal pendulum from length
+====================================
+
+An ideal pendulum is an object hanging on a thread. In a gravitational field it starts oscillating after being pushed out of balance.
+Period of pendulum oscillation does not depend on its mass.
+
+**Conditions:**
+
+#. The angle between pendulum and gravity vector is fairly small (less than 15 degrees).
+#. Ideal pendulum doesn't gain or lose any energy, so there is no friction in the system.
+#. The object is small enough to be considered a material point.
+#. The thread is weightless and doesn't change its length.
+
+**Links:**
+
+#. `Wikipedia, first formula <https://en.wikipedia.org/wiki/Pendulum#Period_of_oscillation>`__.
+"""
+
+from sympy import (Derivative, Eq, diff, sin, solve, pi, sqrt)
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    symbols,
+    quantities,
+    clone_as_function,
+)
 from symplyphysics.core.expr_comparisons import expr_equals
 from symplyphysics.laws.geometry import planar_projection_is_cosine as projector
 from symplyphysics.laws.dynamics import potential_energy_from_mass_and_height as potential_energy
-from symplyphysics.laws.dynamics import kinetic_energy_from_mass_and_velocity as kinetic_energy
-from symplyphysics.laws.kinematic import linear_velocity_from_angular_velocity_and_radius as angular_velocity_law
-from symplyphysics.laws.kinematic import period_from_angular_frequency as angular_frequency
+from symplyphysics.laws.dynamics import kinetic_energy_from_mass_and_speed as kinetic_energy
+from symplyphysics.laws.kinematics import speed_via_angular_speed_and_radius as angular_velocity_law
+from symplyphysics.definitions import period_from_angular_frequency as angular_frequency
 from symplyphysics.definitions import harmonic_oscillator_is_second_derivative_equation as oscillator
-from symplyphysics.definitions import mechanical_energy_is_kinetic_and_potential as mechanical_energy_def
+from symplyphysics.definitions import mechanical_energy_is_kinetic_and_potential_energy as mechanical_energy_def
 from symplyphysics.laws.conservation import mechanical_energy_is_constant as mechanical_energy_conservation
 
-# Description
-## Ideal pendulum is an object hanging on a thread. In a field of gravitation it starts oscillating after been pushed out of balance.
-## Period of pendulum oscillation does not depends on its mass.
+period = symbols.period
+"""
+The :symbols:`period` of oscillations.
+"""
 
-# Law: T = 2 * pi * sqrt(L/g)
-# Where:
-## T is period of oscillation,
-## L is pendulum length,
-## g is free fall acceleration.
+length = symbols.length
+"""
+The :symbols:`length` of the pendulum.
+"""
 
-# Conditions:
-## - Angle between pendulum and gravity vector is fairly small (less than 15 degrees).
-## - Ideal pendulum doesn't accept or loose any energy. No any friction.
-## - Object is small.
-## - Another end of a thread is not moving in current coordinate system.
-## - Thread is weightless and doesn't change its length.
+law = Eq(period, 2 * pi * sqrt(length / quantities.acceleration_due_to_gravity))
+"""
+:laws:symbol::
 
-pendulum_length = Symbol("pendulum_length", units.length)
-oscillation_period = Symbol("oscillation_period", units.time)
-free_fall_acceleration = units.acceleration_due_to_gravity
-
-law = Eq(oscillation_period, 2 * pi * sqrt(pendulum_length / free_fall_acceleration))
+:laws:latex::
+"""
 
 # Derive this law from conservation of energy
 ## Polar coordinate system is selected for this task. Center is a fixed point of the thread.
 
-pendulum_mass = symbols("pendulum_mass")
+# TODO: prefix variables used in proof with underscore
+
+pendulum_mass = symbols.mass
 ## Pendulum angle is angle between thread and gravity vector. In balanced position it is 0.
-pendulum_angle = symbols("pendulum_angle", cls=SymFunction)
-time = symbols("time")
+pendulum_angle = clone_as_function(symbols.angle)
+time = symbols.time
 
 ## Pendulum oscillation is cyclic transfer of energy from kinetic to potential. To set oscillation up we have to input some energy. Usually it is done by biasing the pendulum to some angle and letting it go.
 ## Biasing the pendulum is giving to it some amount of potential energy.
 
-pendulum_height_before = pendulum_length
+pendulum_height_before = length
 pendulum_height_after = projector.law.subs({
-    projector.vector_length: pendulum_length,
+    projector.vector_length: length,
     projector.vector_angle: pendulum_angle(time)
 }).rhs
 amount_of_potential_energy = potential_energy.law.subs({
-    potential_energy.body_mass: pendulum_mass,
-    potential_energy.free_fall_acceleration: free_fall_acceleration,
+    potential_energy.mass: pendulum_mass,
     potential_energy.height: (pendulum_height_before - pendulum_height_after)
 }).rhs
 
 ## Kinetic energy of the pendulum is:
-## pendulum_mass * (pendulum_length * angular_velocity)**2 / 2
+## pendulum_mass * (length * angular_velocity)**2 / 2
 
 linear_velocity = angular_velocity_law.law.subs({
-    angular_velocity_law.curve_radius: pendulum_length,
-    angular_velocity_law.angular_velocity: Derivative(pendulum_angle(time), time),
+    angular_velocity_law.radius_of_curvature: length,
+    angular_velocity_law.angular_speed: Derivative(pendulum_angle(time), time),
 }).rhs
 amount_of_kinetic_energy = kinetic_energy.law.subs({
-    kinetic_energy.body_mass: pendulum_mass,
-    kinetic_energy.body_velocity: linear_velocity
+    kinetic_energy.mass: pendulum_mass,
+    kinetic_energy.speed: linear_velocity
 }).rhs
 
 mechanical_energy = mechanical_energy_def.definition.subs({
@@ -99,27 +119,23 @@ small_angle_harmonic_oscillation_eq = total_energy_diff_solved_eq.subs(
     sin(pendulum_angle(time)), pendulum_angle(time))
 
 # Will result in harmonic oscillator equation:
-## Derivative(pendulum_angle(time), (time, 2)) = -free_fall_acceleration / pendulum_length * pendulum_angle(time)
+## Derivative(pendulum_angle(time), (time, 2)) = -free_fall_acceleration / length * pendulum_angle(time)
 oscillator_eq = oscillator.definition.subs(oscillator.time, time)
-oscillator_eq = oscillator_eq.subs(oscillator.displacement_function(time), pendulum_angle(time))
+oscillator_eq = oscillator_eq.subs(oscillator.displacement(time), pendulum_angle(time))
 angular_frequency_solved = solve([oscillator_eq, small_angle_harmonic_oscillation_eq],
     (oscillator.angular_frequency, pendulum_angle(time)),
     dict=True)[0][oscillator.angular_frequency]
 
 ## Check that expected period matches our law.
 ## Square roots fail to compare with each other. Raise both parts to power of 2 before checking for equality.
-oscillation_period_derived = angular_frequency.law.subs(angular_frequency.circular_frequency,
+oscillation_period_derived = angular_frequency.law.subs(angular_frequency.angular_frequency,
     angular_frequency_solved).rhs
 assert expr_equals(oscillation_period_derived**2, law.rhs**2)
 
 
-def print_law() -> str:
-    return print_expression(law)
-
-
-@validate_input(pendulum_length_=pendulum_length)
-@validate_output(oscillation_period)
+@validate_input(pendulum_length_=length)
+@validate_output(period)
 def calculate_period(pendulum_length_: Quantity) -> Quantity:
-    solved = solve(law, oscillation_period, dict=True)[0][oscillation_period]
-    result_expr = solved.subs(pendulum_length, pendulum_length_)
+    solved = solve(law, period, dict=True)[0][period]
+    result_expr = solved.subs(length, pendulum_length_)
     return Quantity(result_expr)

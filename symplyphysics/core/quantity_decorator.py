@@ -1,23 +1,32 @@
 import functools
 import inspect
-from typing import Any, Callable, Sequence
+from typing import Any, Callable, Sequence, TypeAlias, SupportsFloat
 from sympy.physics.units import Quantity as SymQuantity, Dimension
 
-from .symbols.symbols import DimensionSymbol, Function, Symbol
-from .dimensions import assert_equivalent_dimension, ScalarValue
+from .symbols.symbols import DimensionSymbol, Function, Symbol, IndexedSymbol
+from .operations.symbolic import Symbolic
+from .dimensions import assert_equivalent_dimension
+
+_ValueType: TypeAlias = SupportsFloat | DimensionSymbol | Symbolic
+
+_UnitType: TypeAlias = Dimension | Symbol | Function | IndexedSymbol | Symbolic
 
 
-def _assert_expected_unit(value: ScalarValue | SymQuantity | DimensionSymbol |
-    Sequence[ScalarValue | SymQuantity | DimensionSymbol],
-    expected_units: Dimension | Symbol | Function | Sequence[Dimension | Symbol | Function],
-    param_name: str, function_name: str) -> None:
-    components: list[ScalarValue | SymQuantity | Dimension] = []
+def _assert_expected_unit(
+    value: _ValueType | Sequence[_ValueType],
+    expected_units: _UnitType | Sequence[_UnitType],
+    param_name: str,
+    function_name: str,
+) -> None:
+    components: list[SupportsFloat | Dimension] = []
     indexed = isinstance(value, Sequence)
     values = list(value) if isinstance(value, Sequence) else list([value])
     for item in values:
         if isinstance(item, SymQuantity):
             components.append(item)
         elif isinstance(item, DimensionSymbol):
+            components.append(item.dimension)
+        elif isinstance(item, Symbolic):
             components.append(item.dimension)
         else:
             components.append(item)
@@ -30,7 +39,7 @@ def _assert_expected_unit(value: ScalarValue | SymQuantity | DimensionSymbol |
 
     expected_unit_dimensions: list[Dimension] = []
     for u in list(expected_units):
-        d = u.dimension if isinstance(u, DimensionSymbol) else u
+        d = u.dimension if isinstance(u, (DimensionSymbol, Symbolic)) else u
         expected_unit_dimensions.append(d)
 
     for idx, c in enumerate(components):
@@ -73,7 +82,8 @@ def validate_input(**decorator_kwargs: Any) -> Callable[[Callable[..., Any]], Ca
 # @validate_output(units.length)
 # @validate_output(body_volume)
 def validate_output(
-        expected_unit: Dimension | Symbol | Function) -> Callable[[Any], Callable[..., Any]]:
+    expected_unit: Dimension | Symbol | Function | IndexedSymbol
+) -> Callable[[Any], Callable[..., Any]]:
 
     def validate_func(func: Callable[..., Any]) -> Callable[..., Any]:
 

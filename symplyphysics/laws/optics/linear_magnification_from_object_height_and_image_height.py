@@ -1,29 +1,52 @@
-from sympy import (Eq, solve, S)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output, dimensionless, convert_to)
+"""
+Linear magnification from object height and image height
+========================================================
 
-# Description
-## Magnification, in optics, the size of an image relative to the size of the object creating it.
-## Linear (sometimes called lateral or transverse) magnification refers to the ratio of image length to object length measured in planes that are perpendicular to the optical axis.
+Magnification, in optics, is the size of an image relative to the size of the object creating it.
+Linear (sometimes called lateral or transverse) magnification refers to the ratio of image length
+to object length measured in planes that are perpendicular to the optical axis.
 
-## Law: M = h_image / h_object
-## Where:
-## M is linear magnification produced by lense
-## h_image is height of the image
-## h_object is height of the object
+**Links:**
 
-## Conditions
-## If the image is straight, then the value h_image is considered with a plus sign, and if it is inverted, then with a minus sign.
+#. `Wikipedia <https://en.wikipedia.org/wiki/Magnification#Single_lens>`__.
+"""
 
-image_height = Symbol("image_height", units.length)
-object_height = Symbol("object_height", units.length)
-magnification = Symbol("magnification", dimensionless)
+from sympy import Eq, solve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    convert_to_float,
+    symbols,
+    clone_as_symbol,
+)
+
+image_height = clone_as_symbol(
+    symbols.height,
+    display_symbol="h_i",
+    display_latex="h_\\text{i}",
+)
+"""
+:symbols:`height` of the image.
+"""
+
+object_height = clone_as_symbol(
+    symbols.height,
+    display_symbol="h_o",
+    display_latex="h_\\text{o}",
+)
+
+magnification = symbols.magnification
+"""
+:symbols:`magnification` of the lens.
+"""
 
 law = Eq(magnification, image_height / object_height)
+"""
+:laws:symbol::
 
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(image_height_=image_height, object_height_=object_height)
@@ -34,5 +57,4 @@ def calculate_magnification(image_height_: Quantity, object_height_: Quantity) -
         image_height: image_height_,
         object_height: object_height_,
     })
-    result = Quantity(result_magnification)
-    return float(convert_to(result, S.One).evalf())
+    return convert_to_float(result_magnification)

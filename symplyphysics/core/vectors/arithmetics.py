@@ -1,28 +1,27 @@
 from functools import reduce
 from operator import add
-from typing import Optional, Sequence
-from sympy import S, Expr, cos, sin, sqrt, sympify
+from typing import Optional, Sequence, Any
+from sympy import S, Expr, cos, sin, sqrt, sympify, diff, integrate
 
-from .vectors import QuantityVector, Vector
+from .vectors import Vector
 from ..expr_comparisons import expr_equals
-from ..symbols.quantities import Quantity
 from ..coordinate_systems.coordinate_systems import CoordinateSystem
-from ..dimensions import ScalarValue, assert_equivalent_dimension
 
 
 # Add zeroes so that both vectors have the same length.
 # Use 'max_size' to increase or trim vector size. Vectors are aligned to the
 # larger (more dimensions) vector size if not set.
 def _extend_two_vectors(
-        vector_left: Vector,
-        vector_right: Vector,
-        max_size: Optional[int] = None) -> tuple[Sequence[ScalarValue], Sequence[ScalarValue]]:
+    vector_left: Vector,
+    vector_right: Vector,
+    max_size: Optional[int] = None,
+) -> tuple[Sequence[Expr], Sequence[Expr]]:
     max_size = max(len(vector_left.components), len(
         vector_right.components)) if max_size is None else max_size
     list_left_extended = list(
-        vector_left.components) + [0] * (max_size - len(vector_left.components))
+        vector_left.components) + [S.Zero] * (max_size - len(vector_left.components))
     list_right_extended = list(
-        vector_right.components) + [0] * (max_size - len(vector_right.components))
+        vector_right.components) + [S.Zero] * (max_size - len(vector_right.components))
     return (list_left_extended, list_right_extended)
 
 
@@ -39,40 +38,62 @@ def equal_vectors(vector_left: Vector, vector_right: Vector) -> bool:
     return True
 
 
-# Sum of two vectors
-# Sum of two vectors can be seen as a diagonal of the parallelogram, where vectors are adjacent sides of this parallelogram.
-# To subtract vectors, multiply one of the vectors to -1 and add them.
+# Add any number of vectors
 #NOTE: adding two non-cartesian vectors is not a trivial task. We suggest to convert them to cartesian
 #      vectors, add them and convert back.
-def add_cartesian_vectors(vector_left: Vector, vector_right: Vector) -> Vector:
-    if vector_left.coordinate_system != vector_right.coordinate_system:
-        raise TypeError(
-            f"Different coordinate systems in vectors: {str(vector_left.coordinate_system)} vs {str(vector_right.coordinate_system)}"
-        )
-    if vector_left.coordinate_system.coord_system_type != CoordinateSystem.System.CARTESIAN:
-        coord_name_from = CoordinateSystem.system_to_transformation_name(
-            vector_left.coordinate_system.coord_system_type)
-        raise ValueError(
-            f"Addition is only supported for cartesian coordinates: got {coord_name_from}")
-    if vector_right.coordinate_system.coord_system_type != CoordinateSystem.System.CARTESIAN:
-        coord_name_from = CoordinateSystem.system_to_transformation_name(
-            vector_right.coordinate_system.coord_system_type)
-        raise ValueError(
-            f"Addition is only supported for cartesian coordinates: got {coord_name_from}")
-    (list_left_extended, list_right_extended) = _extend_two_vectors(vector_left, vector_right)
-    result = list(
-        map(lambda lr: sympify(lr[0] + lr[1]), zip(list_left_extended, list_right_extended)))
-    return Vector(result, vector_left.coordinate_system)
+def add_cartesian_vectors(*vectors: Vector) -> Vector:
+
+    def add_two_cartesian_vectors(vector_left: Vector, vector_right: Vector) -> Vector:
+        if vector_left.coordinate_system != vector_right.coordinate_system:
+            raise ValueError("Vectors must have the same coordinate system, "
+                f"got {vector_left.coordinate_system} and {vector_right.coordinate_system}")
+
+        left_type = vector_left.coordinate_system.coord_system_type
+        right_type = vector_right.coordinate_system.coord_system_type
+
+        if left_type != CoordinateSystem.System.CARTESIAN or right_type != CoordinateSystem.System.CARTESIAN:
+            left_name = CoordinateSystem.system_to_transformation_name(left_type)
+            right_name = CoordinateSystem.system_to_transformation_name(right_type)
+            raise ValueError(f"Expect two Cartesian vectors, got {left_name} and {right_name}")
+
+        (list_left_extended, list_right_extended) = _extend_two_vectors(vector_left, vector_right)
+        result = [
+            sympify(left_component + right_component, strict=True)
+            for (left_component, right_component) in zip(list_left_extended, list_right_extended)
+        ]
+
+        return Vector(result, vector_left.coordinate_system)
+
+    if len(vectors) < 1:
+        raise ValueError("Provide at least one vector")
+
+    result = vectors[0]
+    for vector in vectors[1:]:
+        result = add_two_cartesian_vectors(result, vector)
+    return result
+
+
+# Subtract vectors from the first given vector
+def subtract_cartesian_vectors(*vectors: Vector) -> Vector:
+    if len(vectors) < 2:
+        raise ValueError("Provide at least two vectors")
+
+    vector_minuend = vectors[0]
+    vector_subtrahend = add_cartesian_vectors(*vectors[1:])
+    return add_cartesian_vectors(
+        vector_minuend,
+        scale_vector(-1, vector_subtrahend),
+    )
 
 
 # Change Vector magnitude (length)
 # Scalar multiplication changes the magnitude of the vector and does not change it's direction.
-def scale_vector(scalar_value: ScalarValue, vector: Vector) -> Vector:
+def scale_vector(scalar_value: Any, vector: Vector) -> Vector:
     if vector.coordinate_system.coord_system_type == CoordinateSystem.System.CARTESIAN:
         vector_components = [scalar_value * e for e in vector.components]
         return Vector(vector_components, vector.coordinate_system)
     if vector.coordinate_system.coord_system_type == CoordinateSystem.System.CYLINDRICAL:
-        vector_components = [sympify(c) for c in vector.components]
+        vector_components = list(vector.components)
         vector_size = len(vector_components)
         if vector_size > 0:
             vector_components[0] = vector_components[0] * scalar_value
@@ -80,7 +101,7 @@ def scale_vector(scalar_value: ScalarValue, vector: Vector) -> Vector:
             vector_components[2] = vector_components[2] * scalar_value
         return Vector(vector_components, vector.coordinate_system)
     if vector.coordinate_system.coord_system_type == CoordinateSystem.System.SPHERICAL:
-        vector_components = [sympify(c) for c in vector.components]
+        vector_components = list(vector.components)
         if len(vector_components) > 0:
             vector_components[0] = vector_components[0] * scalar_value
         return Vector(vector_components, vector.coordinate_system)
@@ -89,9 +110,12 @@ def scale_vector(scalar_value: ScalarValue, vector: Vector) -> Vector:
 
 
 # Multiply elements of two lists respectively and sum the results
-def _multiply_lists_and_sum(list_left: Sequence[ScalarValue],
-    list_right: Sequence[ScalarValue]) -> Expr:
-    return sympify(reduce(add, map(lambda lr: lr[0] * lr[1], zip(list_left, list_right)), 0))
+def _multiply_lists_and_sum(
+    list_left: Sequence[Any],
+    list_right: Sequence[Any],
+) -> Expr:
+    return sympify(reduce(add, map(lambda lr: lr[0] * lr[1], zip(list_left, list_right)), 0),
+        strict=True)
 
 
 # Dot product of two vectors
@@ -162,7 +186,7 @@ def cross_cartesian_vectors(vector_left: Vector, vector_right: Vector) -> Vector
         dimensions)
     ax, ay, az = list_left_extended
     bx, by, bz = list_right_extended
-    result = [sympify(ay * bz - az * by), sympify(az * bx - ax * bz), sympify(ax * by - ay * bx)]
+    result = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx]
     return Vector(result, vector_left.coordinate_system)
 
 
@@ -171,43 +195,52 @@ def vector_unit(vector_: Vector) -> Vector:
     return scale_vector(1 / vector_magnitude(vector_), vector_)
 
 
-# Sum of two vectors of quantities
-def add_cartesian_quantity_vectors(vector_left: QuantityVector,
-    vector_right: QuantityVector) -> QuantityVector:
-    assert_equivalent_dimension(vector_left.dimension, vector_left.display_name,
-        "add_cartesian_quantity_vectors", vector_right.dimension)
-    return QuantityVector(
-        add_cartesian_vectors(vector_left, vector_right).components, vector_left.coordinate_system)
+# Project `original_vector_` onto `target_vector_`. The result is the orthogonal projection of
+# `original_vector_` onto a straight line parallel to `target_vector_` and is parallel to
+# `target_vector_`.
+def project_vector(
+    original_vector_: Vector,
+    target_vector_: Vector,
+) -> Vector:
+    return scale_vector(
+        dot_vectors(original_vector_, target_vector_) / dot_vectors(target_vector_, target_vector_),
+        target_vector_,
+    )
 
 
-# Change QuantityVector magnitude (length)
-def scale_quantity_vector(scalar_value: Quantity, vector: QuantityVector) -> QuantityVector:
-    scaled_quantities = scale_vector(scalar_value, vector)
-    return QuantityVector(scaled_quantities.components, vector.coordinate_system)
+# Reject `original_vector_` from `target_vector_`. The result is the orthogonal projection of
+# `original_vector_` onto the (hyper)plane orthogonal to `target_vector_` and is orthogonal to
+# `target_vector_`.
+def reject_cartesian_vector(
+    original_vector_: Vector,
+    target_vector_: Vector,
+) -> Vector:
+    return add_cartesian_vectors(original_vector_,
+        scale_vector(-1, project_vector(original_vector_, target_vector_)))
 
 
-# Dot product of two vectors of quantities
-def dot_quantity_vectors(vector_left: QuantityVector, vector_right: QuantityVector) -> Quantity:
-    dotted = dot_vectors(vector_left, vector_right)
-    return Quantity(dotted)
+# Only works in non-rotating coordinate systems
+def diff_cartesian_vector(
+    vector_: Vector,
+    *args: Expr,
+) -> Vector:
+    if vector_.coordinate_system.coord_system_type != CoordinateSystem.System.CARTESIAN:
+        raise ValueError(
+            "Component-wise vector differentiation is only supported for Cartesian coordinates")
+
+    components = [diff(component, *args) for component in vector_.components]
+
+    return Vector(components, vector_.coordinate_system)
 
 
-# Magnitude of the vector of quantities
-def quantity_vector_magnitude(vector_: QuantityVector) -> Quantity:
-    squared_sum = dot_quantity_vectors(vector_, vector_)
-    return Quantity(sqrt(squared_sum))
+def integrate_cartesian_vector(
+    vector_: Vector,
+    *args: Expr | tuple[Expr, Any, Any],
+) -> Vector:
+    if vector_.coordinate_system.coord_system_type != CoordinateSystem.System.CARTESIAN:
+        raise ValueError(
+            "Component-wise vector integration is only supported for Cartesian coordinates")
 
+    components = [integrate(component, *args) for component in vector_.components]
 
-# Cross product of two vectors of quantities
-def cross_cartesian_quantity_vectors(vector_left: QuantityVector,
-    vector_right: QuantityVector) -> QuantityVector:
-    assert_equivalent_dimension(vector_left.dimension, vector_left.display_name,
-        "cross_cartesian_quantity_vectors", vector_right.dimension)
-    return QuantityVector(
-        cross_cartesian_vectors(vector_left, vector_right).components,
-        vector_left.coordinate_system)
-
-
-# Make quantity unit vector
-def quantity_vector_unit(vector_: QuantityVector) -> QuantityVector:
-    return scale_quantity_vector(1 / quantity_vector_magnitude(vector_), vector_)
+    return Vector(components, vector_.coordinate_system)

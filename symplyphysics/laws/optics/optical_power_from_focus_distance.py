@@ -1,32 +1,39 @@
+"""
+Optical power from focus distance
+=================================
+
+The optical power of a lens is a value characterizing the refractive power
+of axisymmetric lenses and centered optical systems made of such lenses.
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Optical_power>`__.
+"""
+
 from sympy import Eq, solve
-from symplyphysics import Symbol, units, print_expression, Quantity, \
-    validate_input, validate_output
+from symplyphysics import Quantity, validate_input, validate_output, symbols
 
-# Description
-## The optical power of a lens is a value characterizing the refractive power
-## of axisymmetric lenses and centered optical systems made of such lenses.
+focus_distance = symbols.focal_length
+"""
+:symbols:`focal_length` of the lens.
+"""
 
-# Law D = 1 / F
-# Where:
-## F - focus distance of lens
-## D - optical power of lens
-
-focus_distance = Symbol("focus_distance", units.length)
-optical_power = Symbol("optical_power", 1 / units.length)
+optical_power = symbols.optical_power
+"""
+:symbols:`optical_power` of the lens.
+"""
 
 law = Eq(optical_power, 1 / focus_distance)
+"""
+:laws:symbol::
 
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(focus_distance_=focus_distance)
 @validate_output(optical_power)
 def calculate_optical_power(focus_distance_: Quantity) -> Quantity:
     solved = solve(law, optical_power, dict=True)[0][optical_power]
-    result_expr = solved.subs({
-        focus_distance: focus_distance_
-    })
-    result = Quantity(result_expr)
-    return result
+    result_expr = solved.subs({focus_distance: focus_distance_})
+    return Quantity(result_expr)

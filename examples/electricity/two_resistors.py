@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-from sympy import solve, symbols
-from symplyphysics import units
-from symplyphysics.laws.electricity import current_is_proportional_to_voltage as ohm_law
-from symplyphysics.laws.electricity.circuits import conductivity_of_two_parallel_resistors as parallel_conductance
-from symplyphysics.laws.electricity.circuits import resistivity_of_serial_resistors as serial_resistance
-from symplyphysics.definitions import electrical_conductivity_is_inversed_resistance as conductivity_law
+from sympy import Idx, solve, symbols
+from symplyphysics import units, global_index
+from symplyphysics.laws.electricity import current_is_voltage_over_resistance as ohm_law
+from symplyphysics.laws.electricity.circuits import admittance_in_parallel_connection as total_admittance_law
+from symplyphysics.laws.electricity import admittance_is_conductance_and_susceptance as admittance_law
+from symplyphysics.laws.electricity.circuits import resistance_in_serial_connection as serial_resistance
+from symplyphysics.definitions import electrical_conductance_is_inversed_resistance as conductivity_law
 
 # Two resistors are connected across a 12 V battery with internal resistance of 1 Ohm.
 # When they are connected in parallel, the current in the circuit is 4 A.
@@ -24,26 +25,35 @@ I_parallel = symbols("I_parallel")
 ## Find resistance R12 using the law of conductance
 
 sigma1 = solve(conductivity_law.definition,
-    conductivity_law.object_conductivity)[0].subs({conductivity_law.object_resistance: R1})
+    conductivity_law.conductance)[0].subs({conductivity_law.resistance: R1})
 
 sigma2 = solve(conductivity_law.definition,
-    conductivity_law.object_conductivity)[0].subs({conductivity_law.object_resistance: R2})
+    conductivity_law.conductance)[0].subs({conductivity_law.resistance: R2})
 
-parallel_law = parallel_conductance.law.subs({
-    parallel_conductance.first_conductance: sigma1,
-    parallel_conductance.second_conductance: sigma2,
-})
-sigma_parallel = solve(parallel_law, parallel_conductance.parallel_conductance)[0]
+index_local = Idx("index_local", (1, 2))
+
+admittance_expr = admittance_law.law.rhs.subs(admittance_law.susceptance, 0)
+admittance1 = admittance_expr.subs(admittance_law.conductance, sigma1)
+admittance2 = admittance_expr.subs(admittance_law.conductance, sigma2)
+
+sigma_parallel = (total_admittance_law.law.rhs.subs(global_index, index_local).doit().subs({
+    total_admittance_law.admittance[1]: admittance1,
+    total_admittance_law.admittance[2]: admittance2,
+}))
 
 resistance_definition = conductivity_law.definition.subs(
-    {conductivity_law.object_conductivity: sigma_parallel})
-R12_parallel = solve(resistance_definition, conductivity_law.object_resistance)[0]
+    {conductivity_law.conductance: sigma_parallel})
+R12_parallel = solve(resistance_definition, conductivity_law.resistance)[0]
 
 ## The sum resistance R12 is still connected in series to the internal resistance of the battery
 
-total_parallel_law = serial_resistance.law.subs(
-    {serial_resistance.resistances: (R_battery, R12_parallel)})
-R_total_parallel = solve(total_parallel_law, serial_resistance.serial_resistance)[0]
+parallel_law_two_resistors = serial_resistance.law.subs(global_index, index_local).doit()
+
+total_parallel_law = parallel_law_two_resistors.subs({
+    serial_resistance.resistance[1]: R_battery,
+    serial_resistance.resistance[2]: R12_parallel,
+})
+R_total_parallel = solve(total_parallel_law, serial_resistance.total_resistance)[0]
 
 ohm_law_parallel = ohm_law.law.subs({
     ohm_law.current: I_parallel,
@@ -53,12 +63,21 @@ ohm_law_parallel = ohm_law.law.subs({
 
 # Serial connection
 
-serial_law = serial_resistance.law.subs(serial_resistance.resistances, (R1, R2))
-R12_serial = solve(serial_law, serial_resistance.serial_resistance)[0]
+serial_law_two_resistors = serial_resistance.law.subs(global_index, index_local).doit()
 
-total_serial_law = serial_resistance.law.subs(serial_resistance.resistances,
-    (R_battery, R12_serial))
-R_total_serial = solve(total_serial_law, serial_resistance.serial_resistance)[0]
+serial_law = serial_law_two_resistors.subs({
+    serial_resistance.resistance[1]: R1,
+    serial_resistance.resistance[2]: R2,
+})
+R12_serial = solve(serial_law, serial_resistance.total_resistance)[0]
+
+serial_law_resistors_and_battery = serial_resistance.law.subs(global_index, index_local).doit()
+
+total_serial_law = serial_law_resistors_and_battery.subs({
+    serial_resistance.resistance[1]: R_battery,
+    serial_resistance.resistance[2]: R12_serial,
+})
+R_total_serial = solve(total_serial_law, serial_resistance.total_resistance)[0]
 
 ohm_law_serial = ohm_law.law.subs({
     ohm_law.current: I_series,

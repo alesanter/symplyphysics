@@ -1,28 +1,45 @@
-from sympy import (Eq, solve)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output)
+"""
+Density from mass and volume
+============================
 
-# Description
-## The density (more precisely, the volumetric mass density), of a substance
-## is its mass per unit volume.
+Volumetric mass *density* of an object is a physical quantity equal to the mass of the
+object per unit of its volume. See :doc:`laws.quantities.quantity_is_volumetric_density_times_volume`
+for a general version of this law.
 
-# Definition: ρ = m / V
-# Where:
-## m is the mass
-## V is volume
-## ρ is the density
+**Links:**
 
-mass = Symbol("mass", units.mass)
-volume = Symbol("volume", units.volume)
-density = Symbol("density", units.mass / units.volume)
+#. `Wikipedia <https://en.wikipedia.org/wiki/Density#>`__.
+"""
+
+from sympy import Eq, solve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    symbols,
+)
+
+density = symbols.density
+"""
+Volumetric :symbols:`density` of the object.
+"""
+
+mass = symbols.mass
+"""
+:symbols:`mass` of the object.
+"""
+
+volume = symbols.volume
+"""
+:symbols:`volume` of the object.
+"""
 
 definition = Eq(density, mass / volume)
+"""
+:laws:symbol::
 
-definition_units_SI = units.kilogram / units.meter**3
-
-
-def print_law() -> str:
-    return print_expression(definition)
+:laws:latex::
+"""
 
 
 @validate_input(mass_=mass, volume_=volume)

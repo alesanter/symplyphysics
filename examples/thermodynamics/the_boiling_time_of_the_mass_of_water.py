@@ -3,10 +3,13 @@
 from sympy import solve, Symbol, Eq, dsolve
 from symplyphysics import print_expression, Quantity, prefixes, units, convert_to
 from symplyphysics.core.symbols.celsius import to_kelvin_quantity, Celsius
-from symplyphysics.laws.electricity import power_factor_from_active_and_full_power as efficiency_law
-from symplyphysics.laws.thermodynamics import energy_from_combustion as combustion_energy_law
-from symplyphysics.laws.thermodynamics import thermal_energy_from_mass_and_temperature as energy_heating_law
-from symplyphysics.laws.thermodynamics import energy_to_vaporization_from_mass as energy_to_vapor_law
+from symplyphysics.laws.electricity import power_factor_is_real_power_over_apparent_power as efficiency_law
+from symplyphysics.laws.thermodynamics import (
+    heat_is_heat_capacity_times_temperature_change as heating_law,
+    heat_of_combustion_via_mass as combustion_energy_law,
+    heat_of_vaporization_via_mass as energy_to_vapor_law,
+)
+from symplyphysics.laws.quantities import quantity_is_specific_quantity_times_mass as specific_qty_law
 from symplyphysics.definitions import mass_flow_rate as mass_rate_law
 
 # Example from https://easyfizika.ru/zadachi/termodinamika/na-zazhzhennuyu-spirtovku-s-kpd-60-postavili-sosud-s-500-g-vody-pri-20-c-cherez-kakoe/
@@ -15,7 +18,7 @@ from symplyphysics.definitions import mass_flow_rate as mass_rate_law
 # burns in a spirit lamp in a minute?
 
 efficiency = Symbol("efficiency")
-mass_of_booling_water = Symbol("mass_of_booling_water")
+mass_of_boiling_water = Symbol("mass_of_boiling_water")
 mass_of_water = Symbol("mass_of_water")
 temperature_of_water = Symbol("temperature_of_water")
 mass_of_alcohol = Symbol("mass_of_alcohol")
@@ -56,31 +59,31 @@ mass_of_alcohol_value = mass_of_gas_equation.subs({
 }).doit().rhs
 
 energy_from_combustion_alcohol_value = combustion_energy_law.law.subs({
-    combustion_energy_law.specific_heat_combustion: specific_heat_of_combustion_alcohol,
-    combustion_energy_law.mass_of_matter: mass_of_alcohol_value
+    combustion_energy_law.specific_heat_of_combustion: specific_heat_of_combustion_alcohol,
+    combustion_energy_law.mass: mass_of_alcohol_value
 }).rhs
 
-energy_for_heating_water_value = energy_heating_law.law.subs({
-    energy_heating_law.specific_heat_capacity: specific_heat_of_heating_water,
-    energy_heating_law.body_mass: mass_of_water,
-    energy_heating_law.temperature_origin: temperature_of_water,
-    energy_heating_law.temperature_end: temperature_of_vaporization_water
+water_heat_capacity = specific_qty_law.law.rhs.subs({
+    specific_qty_law.specific_quantity: specific_heat_of_heating_water,
+    specific_qty_law.mass: mass_of_water,
+})
+
+energy_for_heating_water_value = heating_law.law.subs({
+    heating_law.heat_capacity: water_heat_capacity,
+    heating_law.temperature_change: temperature_of_vaporization_water - temperature_of_water,
 }).rhs
 
 energy_to_vaporization_water_value = energy_to_vapor_law.law.subs({
-    energy_to_vapor_law.mass_of_matter: mass_of_booling_water,
-    energy_to_vapor_law.specific_heat_vaporization: specific_heat_of_vaporization_water
+    energy_to_vapor_law.mass: mass_of_boiling_water,
+    energy_to_vapor_law.specific_heat_of_vaporization: specific_heat_of_vaporization_water
 }).rhs
 
 # Active work in this example is done to heat water to boiling point and to evaporate. Then
 # A_{active} = Q_{heating} + Q_{vaporization}
 efficiency_equation = efficiency_law.law.subs({
-    efficiency_law.active_power:
-    energy_for_heating_water_value + energy_to_vaporization_water_value,
-    efficiency_law.full_power:
-        energy_from_combustion_alcohol_value,
-    efficiency_law.power_factor:
-        efficiency
+    efficiency_law.real_power: energy_for_heating_water_value + energy_to_vaporization_water_value,
+    efficiency_law.apparent_power: energy_from_combustion_alcohol_value,
+    efficiency_law.power_factor: efficiency
 })
 time_of_vaporization = solve(efficiency_equation, time, dict=True)[0][time]
 answer = Eq(time, time_of_vaporization)
@@ -89,7 +92,7 @@ print(f"Total equation:\n{print_expression(answer)}")
 time_of_vaporization_s = time_of_vaporization.subs({
     efficiency:
     Quantity(60 * units.percents),
-    mass_of_booling_water:
+    mass_of_boiling_water:
     Quantity(20 * units.grams),
     mass_of_water:
     Quantity(500 * units.grams),

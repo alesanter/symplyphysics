@@ -1,42 +1,60 @@
+"""
+Electric field outside charged sphere
+=====================================
+
+The electric field outside of a charged sphere behaves as is the sphere were a point charge,
+i.e. its magnitude is inversely proportional to the square of the distance to the center
+of the sphere. However, due to the Gauss's law, on the inside the electric field is exactly zero.
+
+**Notation:**
+
+#. :quantity_notation:`vacuum_permittivity`.
+
+**Conditions:**
+
+#. The sphere is thin, i.e. its thickness approaches zero.
+
+**Links:**
+
+#. `Wikipedia, "Spherical volume" <https://en.wikipedia.org/wiki/Electric_field#Common_formul%C3%A6>`__.
+"""
+
 from sympy import (Eq, solve, pi)
-from sympy.physics.units import electric_constant
 from symplyphysics import (
-    units,
     Quantity,
-    Symbol,
-    print_expression,
     validate_input,
     validate_output,
+    symbols,
+    quantities,
 )
 
-# Description
-## Let there be a uniformly charged sphere. Outside a uniformly charged sphere, the electric field
-## is exactly the same as that created by a point charge placed in the center of the sphere, equal
-## in magnitude to the total charge of the sphere. Inside a uniformly charged sphere, the electric
-## field intensity is zero.
+electric_field_strength = symbols.electric_field_strength
+"""
+:symbols:`electric_field_strength`.
+"""
 
-## Law is: E = q / (4 * pi * e0 * r^2), where
-## E - electric field intensity,
-## e0 - electric constant,
-## q - electric charge,
-## r - distance.
+charge = symbols.charge
+"""
+Total :symbols:`charge` of the sphere.
+"""
 
-electric_intensity = Symbol("electric_intensity", units.voltage / units.length)
+distance = symbols.euclidean_distance
+"""
+:symbols:`euclidean_distance` to the center of the sphere.
+"""
 
-charge = Symbol("charge", units.charge)
-distance = Symbol("distance", units.length)
+law = Eq(electric_field_strength, charge / (4 * pi * quantities.vacuum_permittivity * distance**2))
+"""
+:laws:symbol::
 
-law = Eq(electric_intensity, charge / (4 * pi * electric_constant * distance**2))
-
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(charge_=charge, distance_=distance)
-@validate_output(electric_intensity)
+@validate_output(electric_field_strength)
 def calculate_electric_intensity(charge_: Quantity, distance_: Quantity) -> Quantity:
-    result_expr = solve(law, electric_intensity, dict=True)[0][electric_intensity]
+    result_expr = solve(law, electric_field_strength, dict=True)[0][electric_field_strength]
     result_expr = result_expr.subs({
         charge: charge_,
         distance: distance_,

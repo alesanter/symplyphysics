@@ -1,33 +1,44 @@
+"""
+Mass is constant
+================
+
+The mass is constant in a system that is closed, and mass is not transformed to energy.
+
+**Conditions:**
+
+#. System in a closed impenetrable volume, that is, molecules/atoms cannot leave it and
+   they are always inside.
+#. Mass is not transformed to energy, for example due to annihilation.
+
+**Note:**
+
+#. SymPy does not have a proper way to represent constant mass. We use it's derivative
+   over time instead. Derivative of the constant value is zero.
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Conservation_of_mass>`__.
+"""
+
 from sympy import (Eq, dsolve, Derivative)
-from symplyphysics import (units, Quantity, Symbol, print_expression, Function, validate_input,
-    validate_output)
+from symplyphysics import (Quantity, validate_input, validate_output, symbols, clone_as_function)
 
-# Description
-## The mass is constant in a system that is closed, and mass is not transformed to energy
+time = symbols.time
+"""
+:symbols:`time`.
+"""
 
-# Law: dm/dt = 0
-## Where:
-## m - summary mass of a system,
-## t - time,
-## dm/dt - mass derivative over time.
-
-# Conditions:
-## - System in a closed impenetrable volume, that is, molecules/atoms cannot leave it
-##   and they are always inside;
-## - Mass is not transformed to energy, for example due to annihilation.
-
-# Note:
-## SymPy does not have a proper way to represent constant mass. We use it's derivative over time instead. Derivative
-## of the constant value is zero.
-
-time = Symbol("time", units.time)
-mass = Function("mass", units.mass)
+mass = clone_as_function(symbols.mass, [time])
+"""
+:symbols:`mass` as a function of :attr:`~time`.
+"""
 
 law = Eq(Derivative(mass(time), time), 0)
+"""
+:laws:symbol::
 
-
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(mass_before_=mass)

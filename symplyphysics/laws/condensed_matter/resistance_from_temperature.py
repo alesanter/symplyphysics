@@ -1,16 +1,32 @@
+"""
+Resistance from temperature
+===========================
+
+The resistance depends on the temperature. For different materials, the value of the
+temperature coefficient and resistance at zero degrees celsius may differ.
+
+**Notation:**
+
+#. :quantity_notation:`standard_conditions_temperature`.
+
+**Links:**
+
+#. `BYJU's, similar formula for resistivity <https://byjus.com/physics/resistivity-temperature-dependence/>`__.
+"""
+
 from sympy import (Eq, solve)
 from symplyphysics import (
+    symbols,
     units,
     Quantity,
     Symbol,
-    print_expression,
     validate_input,
     validate_output,
+    quantities,
+    clone_as_symbol,
 )
 
 # Description
-## The resistance depends on the temperature. For different materials, the value
-## of the temperature coefficient and resistance at zero degrees celsius may differ.
 
 ## Law is: R = R0 * (1 + a * (T - T0)), where
 ## R - resistance,
@@ -19,20 +35,35 @@ from symplyphysics import (
 ## T - temperature,
 ## T0 - 273.15 kelvin degrees.
 
-resistance = Symbol("resistance", units.impedance)
+resistance = symbols.electrical_resistance
+"""
+:symbols:`electrical_resistance`.
+"""
 
-resistance_initial = Symbol("resistance_initial", units.impedance)
-temperature_coefficient = Symbol("temperature_coefficient", 1 / units.temperature)
-temperature = Symbol("temperature", units.temperature)
+resistance_initial = clone_as_symbol(symbols.electrical_resistance, subscript="0")
+"""
+:symbols:`electrical_resistance` at :attr:`~symplyphysics.quantities.standard_conditions_temperature`.
+"""
 
-celsius_to_kelvin = Quantity(273.15 * units.kelvin)
+temperature_coefficient = Symbol("a", 1 / units.temperature)
+"""
+Temperature coefficient of resistance.
+"""
 
-law = Eq(resistance,
-    resistance_initial * (1 + temperature_coefficient * (temperature - celsius_to_kelvin)))
+temperature = symbols.temperature
+"""
+:symbols:`temperature`.
+"""
 
+law = Eq(
+    resistance,
+    resistance_initial * (1 + temperature_coefficient *
+    (temperature - quantities.standard_conditions_temperature)))
+"""
+:laws:symbol::
 
-def print_law() -> str:
-    return print_expression(law)
+:laws:latex::
+"""
 
 
 @validate_input(resistance_initial_=resistance_initial,

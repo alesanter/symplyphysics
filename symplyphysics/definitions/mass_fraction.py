@@ -1,27 +1,46 @@
-from sympy import (Eq, solve, S)
-from symplyphysics import (units, Quantity, Symbol, print_expression, validate_input,
-    validate_output, dimensionless, convert_to)
+"""
+Mass fraction of mixture component
+==================================
+
+Mass fraction is the ratio of the mass of a mixture component to the total mass of the mixture.
+
+**Links:**
+
+#. `Wikipedia <https://en.wikipedia.org/wiki/Mass_fraction_(chemistry)#>`__.
+"""
+
+from sympy import Eq, solve
+from symplyphysics import (
+    Quantity,
+    validate_input,
+    validate_output,
+    convert_to_float,
+    clone_as_symbol,
+    symbols,
+)
 from symplyphysics.core.symbols.fraction import Fraction
 
-# Description
-## The mass fraction is the ratio of the mass of the mixture to the total mass of the mixture
-## omega = m_i / m
-## Where:
-## m_i - mass of component
-## m - mass of mixture
-## omega - mass fraction of the mixture
+mass_fraction = clone_as_symbol(symbols.mass_fraction, display_symbol="w[i]", display_latex="w_i")
+"""
+:symbols:`mass_fraction` of the mixture component.
+"""
 
-mass_fraction = Symbol("mass_fraction", dimensionless)
-mass_of_component = Symbol("mass_of_component", units.mass)
-mass_of_mixture = Symbol("mass_of_mixture", units.mass)
+mass_of_component = clone_as_symbol(symbols.mass, display_symbol="m[i]", display_latex="m_i")
+"""
+:symbols:`mass` of the mixture component.
+"""
+
+mass_of_mixture = symbols.mass
+"""
+Total :symbols:`mass` of the mixture.
+"""
 
 definition = Eq(mass_fraction, mass_of_component / mass_of_mixture)
+"""
+:laws:symbol::
 
-definition_units_SI = dimensionless
-
-
-def print_law() -> str:
-    return print_expression(definition)
+:laws:latex::
+"""
 
 
 @validate_input(mass_of_component_=mass_of_component, mass_of_mixture_=mass_of_mixture)
@@ -33,4 +52,4 @@ def calculate_mass_fraction(mass_of_component_: Quantity, mass_of_mixture_: Quan
         mass_of_mixture: mass_of_mixture_
     })
     result = Quantity(result_expr)
-    return Fraction(convert_to(result, S.One).evalf())
+    return Fraction(convert_to_float(result))
